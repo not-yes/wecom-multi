@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+target/
+
+# Tauri
+src-tauri/target/
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Tests
+coverage/
+.nyc_output/
