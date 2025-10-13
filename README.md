@@ -58,29 +58,50 @@ wecom-multi-open/
 
 ## 快速开始
 
-### 环境要求
+### 最简单的方式 - 使用 PowerShell 脚本
+
+无需编译,直接运行:
+
+```powershell
+# 启动 2 个企业微信实例
+.\scripts\wecom_multi_open.ps1 -Count 2
+
+# 启动 3 个实例
+.\scripts\wecom_multi_open.ps1 -Count 3
+```
+
+详细说明请查看 [快速开始指南](QUICKSTART.md)
+
+### 使用完整 GUI 应用
+
+#### 环境要求
 
 - Node.js >= 18
 - Rust >= 1.70
 - Windows 10/11 (核心功能仅支持 Windows)
 
-### 安装依赖
+#### 安装依赖
 
 ```bash
 npm install
 ```
 
-### 开发模式
+#### 开发模式
 
 ```bash
-npm run tauri dev
+npm run tauri:dev
 ```
 
-### 构建
+#### 构建
 
 ```bash
-npm run tauri build
+npm run tauri:build
 ```
+
+更多详情请查看:
+- [快速开始指南](QUICKSTART.md)
+- [用户指南](docs/USER_GUIDE.md)
+- [开发文档](docs/DEVELOPMENT.md)
 
 ## 工作原理
 
