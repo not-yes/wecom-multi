@@ -10,8 +10,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build ${{ matrix.os }}
+  build-cli:
+    name: Build CLI - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,17 +19,17 @@ jobs:
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: wecom-multi-open-windows.exe
+            artifact_name: wecom-multi-open-cli-windows.exe
             binary_name: wecom-multi-open.exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: wecom-multi-open-macos-intel
+            artifact_name: wecom-multi-open-cli-macos-intel
             binary_name: wecom-multi-open
 
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: wecom-multi-open-macos-m1
+            artifact_name: wecom-multi-open-cli-macos-m1
             binary_name: wecom-multi-open
 
     steps:
@@ -59,8 +59,8 @@ jobs:
           path: target
           key: ${{ runner.os }}-${{ matrix.target }}-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Build CLI
+        run: cargo build --release --target ${{ matrix.target }} --bin wecom-multi-open
 
       - name: Rename binary (Unix)
         if: matrix.os != 'windows-latest'
@@ -78,9 +78,105 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_name }}
 
+  build-gui:
+    name: Build GUI - ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+          - platform: macos-intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+
+          - platform: macos-m1
+            os: macos-latest
+            target: aarch64-apple-darwin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache target directory
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-target-gui-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install frontend dependencies
+        run: |
+          cd ui
+          npm ci
+          cd ..
+
+      - name: Build frontend
+        run: |
+          cd ui
+          npm run build
+          cd ..
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^1.5"
+
+      - name: Build Tauri app
+        run: cargo tauri build --target ${{ matrix.target }}
+
+      - name: Upload Windows MSI
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: wecom-multi-open-gui-windows.msi
+          path: target/${{ matrix.target }}/release/bundle/msi/*.msi
+
+      - name: Upload macOS DMG
+        if: matrix.platform == 'macos-intel' || matrix.platform == 'macos-m1'
+        uses: actions/upload-artifact@v3
+        with:
+          name: wecom-multi-open-gui-${{ matrix.platform }}.dmg
+          path: target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+
+      - name: Upload macOS App
+        if: matrix.platform == 'macos-intel' || matrix.platform == 'macos-m1'
+        uses: actions/upload-artifact@v3
+        with:
+          name: wecom-multi-open-gui-${{ matrix.platform }}.app
+          path: target/${{ matrix.target }}/release/bundle/macos/*.app
+
   release:
     name: Create Release
-    needs: build
+    needs: [build-cli, build-gui]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
@@ -97,6 +193,10 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: List downloaded files
+        run: |
+          ls -R
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -104,46 +204,94 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            wecom-multi-open-windows.exe/wecom-multi-open-windows.exe
-            wecom-multi-open-macos-intel/wecom-multi-open-macos-intel
-            wecom-multi-open-macos-m1/wecom-multi-open-macos-m1
+            wecom-multi-open-cli-windows.exe/wecom-multi-open-cli-windows.exe
+            wecom-multi-open-cli-macos-intel/wecom-multi-open-cli-macos-intel
+            wecom-multi-open-cli-macos-m1/wecom-multi-open-cli-macos-m1
+            wecom-multi-open-gui-windows.msi/wecom-multi-open_*_x64*.msi
+            wecom-multi-open-gui-macos-intel.dmg/*.dmg
+            wecom-multi-open-gui-macos-m1.dmg/*.dmg
           body: |
-            ## 企业微信多开工具 v${{ steps.version.outputs.version }}
+            ## 🎉 企业微信多开工具 v${{ steps.version.outputs.version }}
 
-            ### 📦 下载
+            ### 📦 下载方式
 
-            **Windows 用户**:
-            - 下载 `wecom-multi-open-windows.exe`
-            - 双击运行或 `wecom-multi-open-windows.exe 3`
+            #### 🖥️ Windows 用户
 
-            **macOS Intel 用户**:
-            - 下载 `wecom-multi-open-macos-intel`
-            - 运行 `chmod +x wecom-multi-open-macos-intel && ./wecom-multi-open-macos-intel 3`
+            **CLI 版本 (命令行)**:
+            - 下载: `wecom-multi-open-cli-windows.exe`
+            - 使用: 双击运行或 `wecom-multi-open-cli-windows.exe 3`
+            - 体积: ~1.5 MB
 
-            **macOS M1/M2 用户**:
-            - 下载 `wecom-multi-open-macos-m1`
-            - 运行 `chmod +x wecom-multi-open-macos-m1 && ./wecom-multi-open-macos-m1 3`
+            **GUI 版本 (图形界面)** ⭐ 推荐:
+            - 下载: `wecom-multi-open_*_x64.msi`
+            - 使用: 双击安装，然后从开始菜单启动
+            - 体积: ~8 MB
+            - 功能: 图形界面 + 系统托盘 + 实例管理
 
-            ### ✨ 功能
+            #### 🍎 macOS 用户
 
-            - ✅ 支持 Windows 10/11
-            - ✅ 支持 macOS (Intel/M1/M2)
-            - ✅ 轻量级 (< 2MB)
-            - ✅ 零配置
-            - ✅ 开源免费
+            **CLI 版本 (命令行)**:
+            - Intel 芯片: 下载 `wecom-multi-open-cli-macos-intel`
+            - M1/M2/M3 芯片: 下载 `wecom-multi-open-cli-macos-m1`
+            - 使用: `chmod +x 文件名 && ./文件名 3`
+            - 体积: ~600 KB
 
-            ### 📖 文档
+            **GUI 版本 (图形界面)** ⭐ 推荐:
+            - Intel 芯片: 下载 `wecom-multi-open-gui-macos-intel.dmg`
+            - M1/M2/M3 芯片: 下载 `wecom-multi-open-gui-macos-m1.dmg`
+            - 使用: 双击 DMG，拖动到 Applications 文件夹
+            - 体积: ~8 MB
+            - 功能: 图形界面 + 系统托盘 + 实例管理
 
-            - [Windows 使用指南](https://github.com/${{ github.repository }}/blob/main/README.md)
-            - [macOS 使用指南](https://github.com/${{ github.repository }}/blob/main/MACOS_GUIDE.md)
-            - [编译指南](https://github.com/${{ github.repository }}/blob/main/BUILD_GUIDE.md)
+            💡 **如何选择芯片版本**:
+            - 运行 `uname -m` 查看: `arm64` = M1/M2/M3, `x86_64` = Intel
 
-            ### 📝 更新内容
+            ### ✨ 功能特性
 
-            查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+            | 功能 | CLI 版本 | GUI 版本 |
+            |------|---------|---------|
+            | 启动多个实例 | ✅ | ✅ |
+            | 图形界面 | ❌ | ✅ |
+            | 系统托盘 | ❌ | ✅ |
+            | 实例管理 | ❌ | ✅ |
+            | 实时监控 | ❌ | ✅ |
+            | 快捷操作 | ❌ | ✅ |
+
+            ### 🚀 快速开始
+
+            **Windows**:
+            1. 下载 GUI 版本 MSI 安装包
+            2. 双击安装
+            3. 从开始菜单启动"企业微信多开工具"
+
+            **macOS**:
+            1. 下载对应芯片的 DMG 文件
+            2. 双击打开，拖动到 Applications
+            3. 从启动台或 Applications 文件夹启动
+
+            ### 📖 详细文档
+
+            - [README.md](https://github.com/${{ github.repository }}/blob/main/README.md) - 项目总览
+            - [GUI_GUIDE.md](https://github.com/${{ github.repository }}/blob/main/GUI_GUIDE.md) - GUI 使用指南
+            - [MACOS_QUICKSTART.md](https://github.com/${{ github.repository }}/blob/main/MACOS_QUICKSTART.md) - macOS 快速开始
+            - [BUILD_GUIDE.md](https://github.com/${{ github.repository }}/blob/main/BUILD_GUIDE.md) - 编译指南
+
+            ### 🎯 系统要求
+
+            - **Windows**: Windows 10/11 (64位)
+            - **macOS**: macOS 10.15+ (Catalina 或更高)
+            - **内存**: 4GB+ (推荐 8GB)
+            - **企业微信**: 需要已安装
+
+            ### 💡 使用建议
+
+            - 首次使用建议启动 2-3 个实例测试
+            - 8GB 内存建议 3-5 个实例
+            - 16GB+ 内存可以启动 5-10 个实例
+            - GUI 版本使用更方便，推荐普通用户使用
 
             ---
 
-            **首次使用建议启动 2-3 个实例测试**
+            **感谢使用! 如有问题请提交 Issue** 🙏
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
