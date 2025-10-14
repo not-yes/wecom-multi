@@ -239,14 +239,13 @@ pub mod platform {
 pub mod platform {
     use super::*;
     use std::process::Command;
+    use std::fs;
 
     pub fn get_default_app_path() -> PathBuf {
         // 尝试多个可能的路径
         let possible_paths = vec![
             "/Applications/企业微信.app",
             "/Applications/WeCom.app",
-            "/Applications/企业微信.app/Contents/MacOS/企业微信",
-            "/Applications/WeCom.app/Contents/MacOS/WeCom",
         ];
 
         for path in possible_paths {
@@ -260,45 +259,128 @@ pub mod platform {
         PathBuf::from("/Applications/企业微信.app")
     }
 
-    pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
-        let app_path = req.app_path.unwrap_or(get_default_app_path());
+    fn get_instances_dir() -> PathBuf {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(format!("{}/Applications/WeComMulti", home))
+    }
 
-        if !app_path.exists() {
-            return Err(format!("应用程序不存在: {:?}", app_path));
+    fn create_app_instance(source_app: &PathBuf, instance_id: u8) -> std::result::Result<PathBuf, String> {
+        let instances_dir = get_instances_dir();
+
+        // 创建实例目录
+        fs::create_dir_all(&instances_dir)
+            .map_err(|e| format!("创建实例目录失败: {}", e))?;
+
+        // 获取应用名称
+        let app_name = source_app
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or("无法获取应用名称")?;
+
+        // 创建实例路径
+        let instance_path = instances_dir.join(format!("{}{}.app", app_name, instance_id));
+
+        // 如果实例已存在,先删除
+        if instance_path.exists() {
+            fs::remove_dir_all(&instance_path)
+                .map_err(|e| format!("删除旧实例失败: {}", e))?;
         }
 
-        // 提取应用名称或使用完整路径
-        let app_arg = if app_path.to_string_lossy().ends_with(".app") {
-            // 如果是 .app 包,提取应用名称
-            app_path.to_string_lossy().to_string()
-        } else {
-            app_path.to_string_lossy().to_string()
-        };
+        println!("正在克隆应用到: {}", instance_path.display());
+
+        // 复制应用
+        let status = Command::new("cp")
+            .arg("-R")
+            .arg(source_app)
+            .arg(&instance_path)
+            .status()
+            .map_err(|e| format!("复制应用失败: {}", e))?;
+
+        if !status.success() {
+            return Err(format!("复制应用失败,退出码: {}", status.code().unwrap_or(-1)));
+        }
+
+        // 修改 Info.plist 中的 Bundle ID
+        let plist_path = instance_path.join("Contents/Info.plist");
+        let new_bundle_id = format!("com.tencent.WeWorkMac.instance{}", instance_id);
+
+        println!("正在修改 Bundle ID: {}", new_bundle_id);
+
+        let status = Command::new("/usr/libexec/PlistBuddy")
+            .arg("-c")
+            .arg(format!("Set :CFBundleIdentifier {}", new_bundle_id))
+            .arg(&plist_path)
+            .status()
+            .map_err(|e| format!("修改 Bundle ID 失败: {}", e))?;
+
+        if !status.success() {
+            return Err("修改 Bundle ID 失败".to_string());
+        }
+
+        // 清除隔离属性
+        println!("正在清除隔离属性...");
+        let _ = Command::new("/usr/bin/xattr")
+            .arg("-rc")
+            .arg(&instance_path)
+            .status();
+
+        // 重新签名
+        println!("正在重新签名...");
+        let _ = Command::new("codesign")
+            .arg("--force")
+            .arg("--deep")
+            .arg("--sign")
+            .arg("-")
+            .arg("--timestamp=none")
+            .arg(&instance_path)
+            .output();
+
+        Ok(instance_path)
+    }
+
+    pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
+        let source_app = req.app_path.unwrap_or(get_default_app_path());
+
+        if !source_app.exists() {
+            return Err(format!("应用程序不存在: {:?}", source_app));
+        }
 
         let mut pids = vec![];
         let mut success = 0;
         let mut failed = 0;
 
         for i in 0..req.count {
-            // macOS 上使用 open 命令打开多个实例
-            match Command::new("open")
-                .arg("-n") // 新实例
-                .arg("-a")
-                .arg(&app_arg)
-                .spawn()
-            {
-                Ok(child) => {
-                    pids.push(child.id());
-                    success += 1;
+            // 为每个实例创建独立的应用副本
+            match create_app_instance(&source_app, i + 1) {
+                Ok(instance_path) => {
+                    // 启动实例
+                    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+                    match Command::new("open")
+                        .arg("-n")
+                        .arg("-a")
+                        .arg(&instance_path)
+                        .spawn()
+                    {
+                        Ok(child) => {
+                            pids.push(child.id());
+                            success += 1;
+                            println!("✓ 实例 {} 启动成功: {}", i + 1, instance_path.display());
+                        }
+                        Err(e) => {
+                            eprintln!("✗ 启动实例 {} 失败: {}", i + 1, e);
+                            failed += 1;
+                        }
+                    }
                 }
                 Err(e) => {
-                    eprintln!("启动实例 {} 失败: {}", i + 1, e);
+                    eprintln!("✗ 创建实例 {} 失败: {}", i + 1, e);
                     failed += 1;
                 }
             }
 
             if i < req.count - 1 {
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
             }
         }
 
