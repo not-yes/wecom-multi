@@ -1,21 +1,184 @@
-MIT License
+企业微信多开工具 - 非商业开源许可证
+WeCom Multi-Open Tool - Non-Commercial Open Source License
 
-Copyright (c) 2025 WeWork Multi-Open Contributors
+版本 1.0 (2025年1月)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+版权所有 © 2025 企业微信多开工具贡献者
+Copyright © 2025 WeCom Multi-Open Tool Contributors
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+---
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+## 许可条款 | License Terms
+
+### 1. 定义 | Definitions
+
+**"本软件"** 指企业微信多开工具及其相关的源代码、文档、图标和其他材料。
+
+**"个人使用"** 指个人为非商业目的使用本软件。
+
+**"商业使用"** 指任何以营利为目的的使用,包括但不限于:
+- 销售本软件或其衍生作品
+- 将本软件作为收费服务的一部分
+- 在商业产品中集成本软件
+- 使用本软件为他人提供收费服务
+
+---
+
+### 2. 授予的权利 | Granted Rights
+
+#### 2.1 个人使用权 | Personal Use Rights
+
+在遵守本许可证条款的前提下,您可以:
+
+✅ **免费使用**: 为个人、非商业目的免费使用本软件
+✅ **学习研究**: 学习、研究本软件的源代码
+✅ **修改**: 修改本软件以满足个人需求
+✅ **分享**: 与他人分享本软件(必须包含本许可证)
+✅ **贡献**: 向本项目贡献代码和改进
+
+#### 2.2 禁止的使用 | Prohibited Uses
+
+❌ **禁止商业使用**: 不得将本软件用于任何商业目的
+❌ **禁止销售**: 不得销售本软件或其衍生作品
+❌ **禁止收费服务**: 不得使用本软件提供收费服务
+❌ **禁止去除声明**: 不得去除版权声明和许可证声明
+❌ **禁止误导**: 不得声称本软件是您原创的作品
+
+---
+
+### 3. 商业许可 | Commercial Licensing
+
+如果您希望将本软件用于商业目的,请联系项目维护者获取商业许可证。
+
+联系方式: [GitHub Issues](https://github.com/aaronwang123321/wecom-multi/issues)
+
+---
+
+### 4. 分发要求 | Distribution Requirements
+
+如果您分发本软件或其修改版本,您必须:
+
+1. **保留版权声明**: 保留原始的版权声明
+2. **包含许可证**: 包含本许可证的完整副本
+3. **标注修改**: 清楚地标注您所做的任何修改
+4. **相同许可**: 使用相同的许可证分发修改版本
+5. **提供源代码**: 必须提供源代码或提供获取源代码的方式
+
+---
+
+### 5. 商标使用 | Trademark Usage
+
+本许可证不授予您使用项目名称、商标、Logo 或其他标识的权利,除非:
+- 用于描述本软件的来源
+- 用于合理的非商业性使用
+
+---
+
+### 6. 贡献 | Contributions
+
+向本项目提交贡献(包括但不限于代码、文档、问题报告)即表示您同意:
+
+1. 您的贡献将在本许可证下发布
+2. 您拥有提交内容的版权或已获得授权
+3. 您授予项目维护者使用您贡献的权利
+
+---
+
+### 7. 免责声明 | Disclaimer
+
+本软件按"原样"提供,不提供任何明示或暗示的保证,包括但不限于:
+
+⚠️ **适销性保证**
+⚠️ **特定用途适用性保证**
+⚠️ **不侵权保证**
+
+在任何情况下,作者或版权持有人均不对任何索赔、损害或其他责任负责,无论这些追责来自合同、侵权或其它行为中。
+
+---
+
+### 8. 责任限制 | Limitation of Liability
+
+使用本软件的风险由您自行承担。在适用法律允许的最大范围内,作者和贡献者不对以下情况承担责任:
+
+- 直接或间接损失
+- 利润损失
+- 数据丢失
+- 业务中断
+- 或任何其他商业损害或损失
+
+---
+
+### 9. 合规使用 | Compliance
+
+您必须确保使用本软件符合:
+
+1. 本许可证的所有条款
+2. 相关的法律法规
+3. 企业微信的服务条款
+4. 所在地区的法律要求
+
+---
+
+### 10. 终止 | Termination
+
+如果您违反本许可证的任何条款,您的许可将自动终止,您必须:
+
+1. 立即停止使用本软件
+2. 删除所有副本
+3. 停止分发本软件
+
+---
+
+### 11. 许可证更新 | License Updates
+
+项目维护者保留更新本许可证的权利。更新后的许可证将适用于:
+
+- 新版本的软件
+- 新的下载和分发
+
+已经根据旧版本许可证获得的软件副本仍然受旧版本许可证约束。
+
+---
+
+### 12. 法律适用 | Governing Law
+
+本许可证受中华人民共和国法律管辖。
+
+---
+
+### 13. 联系方式 | Contact
+
+- GitHub 仓库: https://github.com/aaronwang123321/wecom-multi
+- 问题反馈: https://github.com/aaronwang123321/wecom-multi/issues
+
+---
+
+## 简要总结 | Summary
+
+### ✅ 您可以 | You CAN:
+
+- 个人免费使用
+- 学习和研究源代码
+- 修改软件
+- 与他人分享(保留许可证)
+- 向项目贡献代码
+
+### ❌ 您不可以 | You CANNOT:
+
+- 用于商业目的
+- 销售软件或衍生作品
+- 提供收费服务
+- 去除版权声明
+- 声称是您的原创作品
+
+### 💼 商业使用 | Commercial Use:
+
+如需商业使用,请联系获取商业许可证。
+
+---
+
+**本许可证最后更新时间: 2025年1月**
+
+---
+
+如果您对本许可证有任何疑问,请通过 GitHub Issues 联系我们。

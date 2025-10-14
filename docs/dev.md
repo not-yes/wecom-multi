@@ -88,13 +88,13 @@ wecom-multi-open/
 │  ├─ wecom_mutex.sys  // 可选驱动源码（KMDF）
 │  └─ README.md
 ├─ Cargo.toml
-├─ LICENSE (MIT)
+├─ LICENSE (非商业开源)
 └─ README.md
 
 ----
 六、安全与合规
 1.  不修改、不注入、不 Hook 企业微信本体，仅操作系统公开句柄，符合 Windows 使用条款；
-2.  开源代码全部 MIT，允许商业二次分发；
+2.  开源代码采用非商业许可证，个人使用免费，商业使用需获取授权；
 3.  提供数字签名指南（SignTool + 开源证书申请流程），降低 AV 误报；
 4.  运行时仅请求 SeDebugPrivilege（用户态方案），不强制管理员；
 5.  提供「一键还原」按钮，关闭所有实例并恢复原始 Mutex 状态。

@@ -1,9 +1,10 @@
 [package]
 name = "wecom-multi-open"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["open-source"]
-license = "MIT"
+license = "SEE LICENSE FILE"
+license-file = "LICENSE"
 
 [lib]
 name = "wecom_multi_open"
