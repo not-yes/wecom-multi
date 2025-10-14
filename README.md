@@ -18,7 +18,7 @@
 
 **下载预编译版本**:
 
-1. 前往 [Releases](https://github.com/aaronwang123321/wecom-multi/releases) 页面
+1. 前往 [Releases](https://github.com/not-yes/wecom-multi/releases) 页面
 2. 下载对应版本:
    - **CLI 版本**: `wecom-multi-open-windows.exe` (1.5MB, 命令行)
    - **GUI 版本**: `wecom-multi-open-gui-windows.msi` (8MB, 图形界面)
@@ -199,7 +199,7 @@ cargo build --release
 - 去除版权声明
 - 声称是您的原创作品
 
-💼 **商业许可**: 如需商业使用,请通过 [GitHub Issues](https://github.com/aaronwang123321/wecom-multi/issues) 联系获取商业许可证。
+💼 **商业许可**: 如需商业使用,请通过 [GitHub Issues](https://github.com/not-yes/wecom-multi/issues) 联系获取商业许可证。
 
 详见 [LICENSE](LICENSE) 文件获取完整许可证条款。
 

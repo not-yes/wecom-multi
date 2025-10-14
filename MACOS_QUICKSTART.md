@@ -6,7 +6,7 @@
 
 ```bash
 # 1. 从 GitHub Releases 下载预编译版本
-# https://github.com/aaronwang123321/wecom-multi/releases
+# https://github.com/not-yes/wecom-multi/releases
 
 # 2. 下载后赋予执行权限
 chmod +x wecom-multi-open-macos-m1  # M1/M2/M3 芯片
