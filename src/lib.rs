@@ -54,7 +54,7 @@ pub mod platform {
         PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe")
     }
 
-    pub async fn spawn_multiple(req: SpawnRequest) -> Result<SpawnResponse, String> {
+    pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
         let exe = req.app_path.unwrap_or(get_default_app_path());
 
         if !exe.exists() {
@@ -97,7 +97,7 @@ pub mod platform {
         })
     }
 
-    fn close_mutex(_name: &str) -> Result<(), String> {
+    fn close_mutex(_name: &str) -> std::result::Result<(), String> {
         unsafe {
             let h_current = GetCurrentProcess();
             let mut buf = vec![0u8; 64 * 1024];
@@ -146,7 +146,7 @@ pub mod platform {
         Ok(())
     }
 
-    fn launch_process(exe: &PathBuf) -> Result<u32, String> {
+    fn launch_process(exe: &PathBuf) -> std::result::Result<u32, String> {
         let wide: Vec<u16> = OsStr::new(exe).encode_wide().chain(Some(0)).collect();
 
         unsafe {
@@ -157,13 +157,13 @@ pub mod platform {
 
             CreateProcessW(
                 PCWSTR::from_raw(wide.as_ptr()),
-                None,
+                PWSTR::null(),
                 None,
                 None,
                 false,
                 PROCESS_CREATION_FLAGS::default(),
                 None,
-                None,
+                PCWSTR::null(),
                 &si,
                 &mut pi,
             )
@@ -177,7 +177,7 @@ pub mod platform {
         }
     }
 
-    pub fn kill_process(pid: u32) -> Result<(), String> {
+    pub fn kill_process(pid: u32) -> std::result::Result<(), String> {
         unsafe {
             match OpenProcess(PROCESS_TERMINATE, false, pid) {
                 Ok(handle) => {
@@ -244,7 +244,7 @@ pub mod platform {
         PathBuf::from("/Applications/WeCom.app/Contents/MacOS/WeCom")
     }
 
-    pub async fn spawn_multiple(req: SpawnRequest) -> Result<SpawnResponse, String> {
+    pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
         let app_path = req.app_path.unwrap_or(get_default_app_path());
 
         if !app_path.exists() {
@@ -285,7 +285,7 @@ pub mod platform {
         })
     }
 
-    pub fn kill_process(pid: u32) -> Result<(), String> {
+    pub fn kill_process(pid: u32) -> std::result::Result<(), String> {
         Command::new("kill")
             .arg("-9")
             .arg(pid.to_string())
@@ -312,11 +312,11 @@ pub mod platform {
         PathBuf::from("")
     }
 
-    pub async fn spawn_multiple(_req: SpawnRequest) -> Result<SpawnResponse, String> {
+    pub async fn spawn_multiple(_req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
         Err("此平台不支持".to_string())
     }
 
-    pub fn kill_process(_pid: u32) -> Result<(), String> {
+    pub fn kill_process(_pid: u32) -> std::result::Result<(), String> {
         Err("此平台不支持".to_string())
     }
 
