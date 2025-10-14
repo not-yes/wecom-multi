@@ -194,3 +194,32 @@ git tag v0.2.0
 git push origin v0.2.0
 # GitHub Actions builds Windows .exe and macOS binaries
 ```
+
+## Documentation Rules
+
+**IMPORTANT**: Keep documentation minimal and focused on development needs only.
+
+### What to Document
+- ✅ Technical implementation details (in CLAUDE.md or inline comments)
+- ✅ Critical platform-specific behavior
+- ✅ API usage and architecture decisions
+- ✅ Build and deployment workflows (brief notes only)
+
+### What NOT to Document
+- ❌ User guides / tutorials / manuals
+- ❌ Testing guides / QA procedures
+- ❌ Installation instructions
+- ❌ FAQ / troubleshooting guides
+- ❌ Multiple README files
+- ❌ Detailed process documentation
+- ❌ Marketing / feature descriptions
+
+### Documentation Structure
+```
+docs/
+├── dev.md                  # Core development guide (keep minimal)
+├── DEVELOPMENT.md          # Architecture and implementation notes
+└── [platform]-research.md  # Research findings (when needed)
+```
+
+**Rule**: Never create more than 3-4 documentation files. Keep each file under 300 lines. Update existing docs instead of creating new ones.
