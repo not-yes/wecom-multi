@@ -4,10 +4,11 @@
 
 ## ⚡ 特点
 
-- ✅ **单文件 EXE** - 只有 1.5MB,双击就能用
-- ✅ **零配置** - 自动检测企业微信路径
+- ✅ **跨平台** - 支持 Windows 和 macOS
+- ✅ **单文件** - 只有 1.5MB,双击就能用
+- ✅ **零配置** - 自动检测应用路径
 - ✅ **零侵入** - 不修改程序,不注入代码
-- ✅ **超轻量** - 核心代码仅 300 行
+- ✅ **超轻量** - 核心代码仅 400 行
 - ✅ **开源免费** - MIT 协议,可自由使用
 
 ## 🚀 快速开始
@@ -53,8 +54,15 @@ target\release\wecom-multi-open.exe
 
 ## 📋 系统要求
 
+**Windows**:
 - Windows 10/11 (64位)
 - 已安装企业微信
+
+**macOS**:
+- macOS 10.15+ (Catalina 或更高)
+- 已安装企业微信 (WeCom)
+
+**通用**:
 - 4GB+ 内存 (推荐 8GB)
 
 ## 🎯 使用场景
@@ -76,7 +84,9 @@ target\release\wecom-multi-open.exe
 ## 📖 文档
 
 - [README_SIMPLE.md](README_SIMPLE.md) - 极简使用指南
+- [MACOS_GUIDE.md](MACOS_GUIDE.md) - macOS 使用指南
 - [BUILD_GUIDE.md](BUILD_GUIDE.md) - 编译构建指南
+- [CROSS_PLATFORM.md](CROSS_PLATFORM.md) - 跨平台编译
 - [scripts/README.md](scripts/README.md) - PowerShell 脚本说明
 
 ## ❓ 常见问题
