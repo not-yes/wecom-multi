@@ -19,10 +19,11 @@
   },
   "productName": "wecom-multi-open",
   "mainBinaryName": "wecom-multi-open",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "identifier": "com.wecom.multiopen",
   "plugins": {},
   "app": {
+    "macOSPrivateApi": true,
     "withGlobalTauri": false,
     "trayIcon": {
       "iconPath": "icons/icon.png",
