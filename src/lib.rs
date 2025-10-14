@@ -241,7 +241,23 @@ pub mod platform {
     use std::process::Command;
 
     pub fn get_default_app_path() -> PathBuf {
-        PathBuf::from("/Applications/WeCom.app/Contents/MacOS/WeCom")
+        // 尝试多个可能的路径
+        let possible_paths = vec![
+            "/Applications/企业微信.app",
+            "/Applications/WeCom.app",
+            "/Applications/企业微信.app/Contents/MacOS/企业微信",
+            "/Applications/WeCom.app/Contents/MacOS/WeCom",
+        ];
+
+        for path in possible_paths {
+            let p = PathBuf::from(path);
+            if p.exists() {
+                return p;
+            }
+        }
+
+        // 默认返回中文版路径
+        PathBuf::from("/Applications/企业微信.app")
     }
 
     pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
@@ -250,6 +266,14 @@ pub mod platform {
         if !app_path.exists() {
             return Err(format!("应用程序不存在: {:?}", app_path));
         }
+
+        // 提取应用名称或使用完整路径
+        let app_arg = if app_path.to_string_lossy().ends_with(".app") {
+            // 如果是 .app 包,提取应用名称
+            app_path.to_string_lossy().to_string()
+        } else {
+            app_path.to_string_lossy().to_string()
+        };
 
         let mut pids = vec![];
         let mut success = 0;
@@ -260,7 +284,7 @@ pub mod platform {
             match Command::new("open")
                 .arg("-n") // 新实例
                 .arg("-a")
-                .arg(&app_path)
+                .arg(&app_arg)
                 .spawn()
             {
                 Ok(child) => {

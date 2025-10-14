@@ -31,6 +31,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+*.DS_Store
 
 # Environment
 .env
@@ -41,4 +42,18 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Personal config
 CLAUDE.md
+
+# Development summaries and process docs (already removed)
+PROJECT_SUMMARY.md
+GUI_IMPLEMENTATION_SUMMARY.md
+RELEASE_V*.md
+*_SUMMARY.md
