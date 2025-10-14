@@ -1,5 +1,10 @@
 {
   "dependencies": {
-    "@tauri-apps/plugin-shell": "^2.3.1"
+    "@tauri-apps/plugin-shell": "^2.3.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.545.0",
+    "tailwind-merge": "^3.3.1"
   }
 }

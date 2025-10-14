@@ -133,6 +133,31 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
+        .setup(|app| {
+            let window = app.get_webview_window("main").unwrap();
+
+            // 应用原生窗口效果
+            #[cfg(target_os = "macos")]
+            {
+                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+                apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
+                    .expect("应用 macOS 毛玻璃效果失败");
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                use window_vibrancy::apply_mica;
+                // Windows 11 云母效果
+                apply_mica(&window, Some(true))
+                    .or_else(|_| {
+                        // 降级到模糊效果
+                        window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
+                    })
+                    .expect("应用 Windows 效果失败");
+            }
+
+            Ok(())
+        })
         .on_window_event(|window, event| match event {
             WindowEvent::CloseRequested { api, .. } => {
                 // 关闭窗口时最小化到托盘而不是退出

@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import './App.css'
+import { Play, Square, RefreshCw, Trash2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Button } from './components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import './styles/globals.css'
 
 interface GuiResponse {
   success: boolean
@@ -8,18 +12,13 @@ interface GuiResponse {
   pids: number[]
 }
 
-interface InstanceInfo {
-  pid: number
-  startedAt: string
-}
-
 function App() {
   const [instanceCount, setInstanceCount] = useState(3)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [runningInstances, setRunningInstances] = useState<InstanceInfo[]>([])
+  const [runningPids, setRunningPids] = useState<number[]>([])
 
-  // 加载当前运行的实例
+  // 自动刷新运行的实例
   useEffect(() => {
     loadRunningInstances()
     const interval = setInterval(loadRunningInstances, 3000)
@@ -29,17 +28,9 @@ function App() {
   async function loadRunningInstances() {
     try {
       const response = await invoke<GuiResponse>('get_running_instances')
-      // 将 PID 转换为 InstanceInfo
-      const instances = response.pids.map((pid, index) => ({
-        pid,
-        startedAt: new Date().toLocaleTimeString('zh-CN', {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }))
-      setRunningInstances(instances)
+      setRunningPids(response.pids)
     } catch (error) {
-      console.error('获取运行实例失败:', error)
+      console.error('加载实例失败:', error)
     }
   }
 
@@ -53,11 +44,9 @@ function App() {
       })
 
       setMessage(response.message)
-      if (response.success) {
-        await loadRunningInstances()
-      }
+      await loadRunningInstances()
     } catch (error) {
-      setMessage(`错误: ${error}`)
+      setMessage(`启动失败: ${error}`)
     } finally {
       setLoading(false)
     }
@@ -72,109 +61,176 @@ function App() {
       setMessage(response.message)
       await loadRunningInstances()
     } catch (error) {
-      setMessage(`错误: ${error}`)
+      setMessage(`关闭失败: ${error}`)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="container">
-      <div className="header">
-        <h1>企业微信多开工具</h1>
-        <p className="version">v0.3.0</p>
-      </div>
+    <div className="min-h-screen bg-transparent">
+      {/* 可拖动标题栏区域 */}
+      <div data-tauri-drag-region className="titlebar" />
 
-      <div className="content">
-        {/* 启动控制 */}
-        <div className="launch-section">
-          <h2>启动控制</h2>
-          <div className="control-group">
-            <label htmlFor="instance-count">启动数量:</label>
-            <div className="input-group">
-              <select
-                id="instance-count"
-                value={instanceCount}
-                onChange={(e) => setInstanceCount(parseInt(e.target.value))}
-                disabled={loading}
-              >
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <option key={num} value={num}>{num}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleSpawn}
-                disabled={loading}
-                className="btn btn-primary"
-              >
-                {loading ? '启动中...' : '启动多开'}
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* 主内容区域 */}
+      <div className="container mx-auto p-6 pt-14 max-w-4xl">
+        <AnimatePresence mode="wait">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+          >
+            {/* 标题卡片 */}
+            <Card className="mb-6 glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-2xl font-semibold tracking-tight">
+                  企业微信多开工具
+                </CardTitle>
+                <CardDescription>
+                  同时运行多个企业微信实例,支持不同账号登录
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
-        {/* 运行中的实例 */}
-        <div className="instances-section">
-          <div className="section-header">
-            <h2>运行中的实例 ({runningInstances.length})</h2>
-            {runningInstances.length > 0 && (
-              <button
-                onClick={handleKillAll}
-                disabled={loading}
-                className="btn btn-danger btn-sm"
-              >
-                全部关闭
-              </button>
-            )}
-          </div>
-
-          <div className="instances-grid">
-            {runningInstances.length === 0 ? (
-              <div className="empty-state">
-                <p>暂无运行中的实例</p>
-                <p className="hint">点击上方"启动多开"按钮开始使用</p>
-              </div>
-            ) : (
-              runningInstances.map((instance, index) => (
-                <div key={instance.pid} className="instance-card">
-                  <div className="instance-header">
-                    <div className="instance-number">实例 #{index + 1}</div>
-                    <div className="instance-status">运行中</div>
-                  </div>
-                  <div className="instance-info">
-                    <div className="info-row">
-                      <span className="label">进程 ID:</span>
-                      <span className="value">{instance.pid}</span>
-                    </div>
-                    <div className="info-row">
-                      <span className="label">启动时间:</span>
-                      <span className="value">{instance.startedAt}</span>
+            {/* 控制面板 */}
+            <Card className="mb-6 glass-effect border-border/50">
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {/* 实例数量选择 */}
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-3 block">
+                      选择实例数量
+                    </label>
+                    <div className="flex gap-2">
+                      {[2, 3, 5, 10].map((count) => (
+                        <Button
+                          key={count}
+                          variant={instanceCount === count ? 'default' : 'outline'}
+                          size="lg"
+                          onClick={() => setInstanceCount(count)}
+                          disabled={loading}
+                          className="flex-1 transition-all duration-150"
+                        >
+                          {count} 个
+                        </Button>
+                      ))}
                     </div>
                   </div>
-                  <button
-                    className="btn btn-danger btn-sm btn-block"
-                    onClick={async () => {
-                      // TODO: 实现单个实例关闭功能
-                      setMessage('单个实例关闭功能开发中...')
-                    }}
-                  >
-                    关闭
-                  </button>
+
+                  {/* 操作按钮 */}
+                  <div className="flex gap-3">
+                    <Button
+                      size="lg"
+                      onClick={handleSpawn}
+                      disabled={loading}
+                      className="flex-1 gap-2 transition-all duration-150"
+                    >
+                      <Play className="w-4 h-4" strokeWidth={2} />
+                      启动实例
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={loadRunningInstances}
+                      disabled={loading}
+                      className="gap-2 transition-all duration-150"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={2} />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="destructive"
+                      onClick={handleKillAll}
+                      disabled={loading || runningPids.length === 0}
+                      className="gap-2 transition-all duration-150"
+                    >
+                      <Square className="w-4 h-4" strokeWidth={2} />
+                      停止全部
+                    </Button>
+                  </div>
+
+                  {/* 状态消息 */}
+                  <AnimatePresence>
+                    {message && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground"
+                      >
+                        {message}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+              </CardContent>
+            </Card>
 
-        {message && (
-          <div className={`message ${message.includes('成功') ? 'success' : 'error'}`}>
-            {message}
-          </div>
-        )}
-      </div>
+            {/* 运行中的实例 */}
+            <Card className="glass-effect border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg font-medium">
+                  运行中的实例
+                  {runningPids.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                      ({runningPids.length} 个)
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {runningPids.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <p className="text-sm">暂无运行中的实例</p>
+                    <p className="text-xs mt-2">点击"启动实例"开始</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <AnimatePresence mode="popLayout">
+                      {runningPids.map((pid, index) => (
+                        <motion.div
+                          key={pid}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: 20 }}
+                          transition={{ duration: 0.15, delay: index * 0.05 }}
+                          className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors duration-150"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <div>
+                              <p className="text-sm font-medium">实例 {index + 1}</p>
+                              <p className="text-xs text-muted-foreground">PID: {pid}</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 transition-colors duration-150"
+                            onClick={async () => {
+                              // TODO: 实现单个实例停止功能
+                              console.log('停止实例:', pid)
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" strokeWidth={2} />
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-      <div className="footer">
-        <p>💡 提示: 窗口关闭后程序会最小化到系统托盘</p>
+            {/* 底部提示 */}
+            <div className="mt-6 text-center text-xs text-muted-foreground">
+              <p>企业微信多开工具 v0.3.0</p>
+              <p className="mt-1">支持 Windows 和 macOS</p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   )
