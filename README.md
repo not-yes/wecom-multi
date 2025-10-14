@@ -1,128 +1,168 @@
-# 企业微信多开工具 (WeWork Multi-Open)
+# 企业微信多开工具
 
-## 项目简介
+> 轻量级、零配置、单文件 EXE - 让企业微信多开变得超级简单!
 
-100% 开源的企业微信 PC 端多开工具,采用系统级 Mutex 管理机制实现多开功能。
+## ⚡ 特点
 
-### 核心特性
+- ✅ **单文件 EXE** - 只有 1.5MB,双击就能用
+- ✅ **零配置** - 自动检测企业微信路径
+- ✅ **零侵入** - 不修改程序,不注入代码
+- ✅ **超轻量** - 核心代码仅 300 行
+- ✅ **开源免费** - MIT 协议,可自由使用
 
-- ✅ 100% 开源 (MIT License)
-- ✅ 不修改企业微信主程序
-- ✅ 不注入 DLL、不 Hook
-- ✅ 支持任意实例数
-- ✅ 支持开机自启
-- ✅ GUI 一键操作
-- ✅ 跨平台架构设计
+## 🚀 快速开始
 
-## 技术架构
+### 方式 1: 直接使用 (推荐)
 
-```
-┌─────────────────────────────┐
-│  Presentation Layer         │  GUI / 系统托盘
-│  Tauri + React              │
-└──────────────┬──────────────┘
-               │ IPC (JSON-RPC)
-┌──────────────┴──────────────┐
-│  Service Layer              │  多开守护服务
-│  Rust + windows-rs          │  Mutex 关闭 + 进程拉起
-└──────────────┬──────────────┘
-               │
-┌──────────────┴──────────────┐
-│  WeWork Layer               │  企业微信原版程序
-└─────────────────────────────┘
+**下载预编译的 EXE**:
+
+1. 前往 [Releases](https://github.com/yourusername/wecom-multi-open/releases) 页面
+2. 下载 `wecom-multi-open.exe`
+3. 双击运行
+
+```cmd
+# 默认启动 3 个实例
+wecom-multi-open.exe
+
+# 启动 5 个实例
+wecom-multi-open.exe 5
 ```
 
-## 目录结构
+### 方式 2: PowerShell 脚本 (无需编译)
+
+```powershell
+cd scripts
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\wecom-multi-open-simple.ps1 -Count 2
+```
+
+### 方式 3: 自己编译
+
+```bash
+# 1. 安装 Rust (只需一次)
+# 访问 https://rustup.rs/
+
+# 2. 编译
+cargo build --release
+
+# 3. 使用
+target\release\wecom-multi-open.exe
+```
+
+**一键构建**: 双击 `build.bat`
+
+## 📋 系统要求
+
+- Windows 10/11 (64位)
+- 已安装企业微信
+- 4GB+ 内存 (推荐 8GB)
+
+## 🎯 使用场景
+
+- **多账号管理** - 同时登录多个企业微信账号
+- **工作测试分离** - 生产环境和测试环境分开
+- **多企业协作** - 管理多个企业的账号
+- **效率提升** - 避免频繁切换账号
+
+## 💡 工作原理
+
+1. 查找系统中企业微信的独占 Mutex (`Tencent.WeWork.ExclusiveObject`)
+2. 关闭该 Mutex
+3. 快速启动企业微信进程
+4. 重复 N 次
+
+**完全安全** - 只操作系统公开 API,不修改任何程序文件。
+
+## 📖 文档
+
+- [README_SIMPLE.md](README_SIMPLE.md) - 极简使用指南
+- [BUILD_GUIDE.md](BUILD_GUIDE.md) - 编译构建指南
+- [scripts/README.md](scripts/README.md) - PowerShell 脚本说明
+
+## ❓ 常见问题
+
+### 提示"企业微信程序不存在"?
+
+确认企业微信已安装在以下位置之一:
+- `C:\Program Files (x86)\WXWork\WXWork.exe`
+- `C:\Program Files\WXWork\WXWork.exe`
+
+### 启动失败?
+
+1. 以管理员身份运行
+2. 关闭杀毒软件或添加信任
+3. 确保企业微信未在运行
+
+### 建议启动几个实例?
+
+| 内存 | 推荐实例数 |
+|------|-----------|
+| 4GB | 2-3 个 |
+| 8GB | 3-5 个 |
+| 16GB+ | 5-10 个 |
+
+### 如何关闭?
+
+直接关闭企业微信窗口,或在任务管理器中结束进程。
+
+## 🔧 技术栈
+
+- **语言**: Rust (安全、高性能)
+- **依赖**:
+  - `windows-rs` - Windows API 绑定
+  - `tokio` - 异步运行时
+- **代码量**: < 400 行
+
+## 📦 项目结构
 
 ```
 wecom-multi-open/
-├── src-tauri/           # Rust 后端服务
-│   ├── src/
-│   │   ├── main.rs      # 主入口
-│   │   ├── lib/
-│   │   │   ├── mutex.rs # Mutex 关闭逻辑
-│   │   │   └── process.rs # 进程管理
-│   │   └── commands.rs  # Tauri 命令
-│   └── Cargo.toml
-├── src/                 # React 前端
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── components/
+├── Cargo.toml                          # Rust 项目配置
+├── src/
+│   └── main.rs                         # 核心代码 (300 行)
 ├── scripts/
-│   ├── handle.ps1       # PowerShell 降级脚本
-│   └── README.md
-├── docs/                # 文档
-├── tests/               # 测试
-└── package.json
+│   └── wecom-multi-open-simple.ps1    # PowerShell 脚本
+├── build.bat                           # 一键构建脚本
+├── README.md                           # 本文档
+├── README_SIMPLE.md                    # 极简指南
+└── BUILD_GUIDE.md                      # 构建指南
 ```
 
-## 快速开始
-
-### 最简单的方式 - 使用 PowerShell 脚本
-
-无需编译,直接运行:
-
-```powershell
-# 启动 2 个企业微信实例
-.\scripts\wecom_multi_open.ps1 -Count 2
-
-# 启动 3 个实例
-.\scripts\wecom_multi_open.ps1 -Count 3
-```
-
-详细说明请查看 [快速开始指南](QUICKSTART.md)
-
-### 使用完整 GUI 应用
-
-#### 环境要求
-
-- Node.js >= 18
-- Rust >= 1.70
-- Windows 10/11 (核心功能仅支持 Windows)
-
-#### 安装依赖
-
-```bash
-npm install
-```
-
-#### 开发模式
-
-```bash
-npm run tauri:dev
-```
-
-#### 构建
-
-```bash
-npm run tauri:build
-```
-
-更多详情请查看:
-- [快速开始指南](QUICKSTART.md)
-- [用户指南](docs/USER_GUIDE.md)
-- [开发文档](docs/DEVELOPMENT.md)
-
-## 工作原理
-
-1. **启动阶段**: 枚举系统句柄,查找并关闭企业微信独占 Mutex (`Tencent.WeWork.ExclusiveObject`)
-2. **进程拉起**: 立即启动企业微信进程,在 Mutex 重建前完成启动
-3. **守护模式**: 可选的进程监控,确保多实例稳定运行
-
-## 安全与合规
-
-- 仅操作系统公开句柄,不修改企业微信程序
-- 符合 Windows 使用条款
-- MIT 开源许可,允许商业使用
-
-## License
-
-MIT License - 详见 [LICENSE](LICENSE) 文件
-
-## 贡献
+## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request!
 
-## 免责声明
+### 开发
 
-本工具仅供学习研究使用,使用者需自行承担使用风险。请遵守企业微信服务条款和相关法律法规。
+```bash
+# 克隆项目
+git clone https://github.com/yourusername/wecom-multi-open.git
+cd wecom-multi-open
+
+# 运行开发版本
+cargo run
+
+# 编译 Release 版本
+cargo build --release
+```
+
+## 📄 许可证
+
+MIT License - 可自由使用、修改、分发
+
+详见 [LICENSE](LICENSE) 文件
+
+## ⚠️ 免责声明
+
+- 本工具仅供学习研究使用
+- 使用者需自行承担使用风险
+- 请遵守企业微信服务条款
+- 请遵守相关法律法规
+
+## 🌟 Star History
+
+如果这个项目对你有帮助,请给个 Star ⭐
+
+---
+
+**让企业微信多开变得简单!** 🎉
