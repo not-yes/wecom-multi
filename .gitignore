@@ -10,6 +10,10 @@ dist/
 dist-ssr/
 *.local
 
+# Downloaded artifacts (from gh run download)
+wecom-multi-open-cli-*/
+wecom-multi-open-gui-*/
+
 # Logs
 *.log
 npm-debug.log*
