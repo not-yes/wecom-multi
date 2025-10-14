@@ -226,7 +226,7 @@ function App() {
 
             {/* 底部提示 */}
             <div className="mt-6 text-center text-xs text-muted-foreground">
-              <p>企业微信多开工具 v0.3.0</p>
+              <p>企业微信多开工具 v0.3.2</p>
               <p className="mt-1">支持 Windows 和 macOS</p>
             </div>
           </motion.div>
