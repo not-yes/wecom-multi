@@ -20,17 +20,17 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: wecom-multi-open-cli-windows.exe
-            binary_name: wecom-multi-open.exe
+            binary_name: wecom-multi-open-cli.exe
 
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: wecom-multi-open-cli-macos-intel
-            binary_name: wecom-multi-open
+            binary_name: wecom-multi-open-cli
 
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: wecom-multi-open-cli-macos-m1
-            binary_name: wecom-multi-open
+            binary_name: wecom-multi-open-cli
 
     steps:
       - name: Checkout code
@@ -60,7 +60,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build CLI
-        run: cargo build --release --target ${{ matrix.target }} --bin wecom-multi-open
+        run: cargo build --release --target ${{ matrix.target }} --bin wecom-multi-open-cli
 
       - name: Rename binary (Unix)
         if: matrix.os != 'windows-latest'
@@ -151,7 +151,7 @@ jobs:
         run: cargo install tauri-cli --version "^1.5"
 
       - name: Build Tauri app
-        run: cargo tauri build --target ${{ matrix.target }}
+        run: cargo tauri build --target ${{ matrix.target }} --features custom-protocol
 
       - name: Upload Windows MSI
         if: matrix.platform == 'windows'

@@ -12,12 +12,12 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "wecom-multi-open"
-path = "src/main.rs"
-
-[[bin]]
-name = "wecom-multi-open-gui"
 path = "src/gui.rs"
 required-features = ["gui"]
+
+[[bin]]
+name = "wecom-multi-open-cli"
+path = "src/main.rs"
 
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
