@@ -1,0 +1,202 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.header {
+  text-align: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.header h1 {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.version {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.control-group {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.control-group label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.input-group input {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-secondary {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+.btn-danger {
+  background: #f44336;
+  color: white;
+}
+
+.status-section {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.status-header h3 {
+  font-size: 18px;
+}
+
+.running-instances {
+  text-align: center;
+}
+
+.running-instances p {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.running-instances strong {
+  font-size: 24px;
+  color: #4CAF50;
+}
+
+.pid-list {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.pid-list small {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.message {
+  padding: 15px;
+  border-radius: 4px;
+  margin-top: 15px;
+  font-weight: 500;
+}
+
+.message.success {
+  background: rgba(76, 175, 80, 0.3);
+  border: 1px solid #4CAF50;
+}
+
+.message.error {
+  background: rgba(244, 67, 54, 0.3);
+  border: 1px solid #f44336;
+}
+
+.footer {
+  text-align: center;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  font-size: 12px;
+}
+
+.footer p {
+  margin: 5px 0;
+  opacity: 0.9;
+}
+
+/* 响应式设计 */
+@media (max-width: 480px) {
+  .quick-actions {
+    flex-direction: column;
+  }
+
+  .input-group {
+    flex-direction: column;
+  }
+
+  .status-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+}

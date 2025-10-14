@@ -5,9 +5,10 @@
 ## ⚡ 特点
 
 - ✅ **跨平台** - 支持 Windows 和 macOS
-- ✅ **单文件** - 只有 1.5MB,双击就能用
+- ✅ **双版本** - CLI 命令行版 (1.5MB) + GUI 图形界面版 (8MB)
 - ✅ **零配置** - 自动检测应用路径
 - ✅ **零侵入** - 不修改程序,不注入代码
+- ✅ **系统托盘** - GUI 版本支持托盘运行和实例管理
 - ✅ **超轻量** - 核心代码仅 400 行
 - ✅ **开源免费** - MIT 协议,可自由使用
 
@@ -15,12 +16,15 @@
 
 ### 方式 1: 直接使用 (推荐)
 
-**下载预编译的 EXE**:
+**下载预编译版本**:
 
-1. 前往 [Releases](https://github.com/yourusername/wecom-multi-open/releases) 页面
-2. 下载 `wecom-multi-open.exe`
+1. 前往 [Releases](https://github.com/aaronwang123321/wecom-multi/releases) 页面
+2. 下载对应版本:
+   - **CLI 版本**: `wecom-multi-open-windows.exe` (1.5MB, 命令行)
+   - **GUI 版本**: `wecom-multi-open-gui-windows.msi` (8MB, 图形界面)
 3. 双击运行
 
+**CLI 版本使用**:
 ```cmd
 # 默认启动 3 个实例
 wecom-multi-open.exe
@@ -28,6 +32,11 @@ wecom-multi-open.exe
 # 启动 5 个实例
 wecom-multi-open.exe 5
 ```
+
+**GUI 版本使用**:
+- 双击打开图形界面
+- 设置实例数量,点击启动
+- 支持系统托盘运行
 
 ### 方式 2: PowerShell 脚本 (无需编译)
 
@@ -84,6 +93,7 @@ target\release\wecom-multi-open.exe
 ## 📖 文档
 
 - [README_SIMPLE.md](README_SIMPLE.md) - 极简使用指南
+- [GUI_GUIDE.md](GUI_GUIDE.md) - GUI 版本使用指南 ⭐
 - [MACOS_GUIDE.md](MACOS_GUIDE.md) - macOS 使用指南
 - [BUILD_GUIDE.md](BUILD_GUIDE.md) - 编译构建指南
 - [CROSS_PLATFORM.md](CROSS_PLATFORM.md) - 跨平台编译
@@ -117,24 +127,41 @@ target\release\wecom-multi-open.exe
 
 ## 🔧 技术栈
 
+**CLI 版本**:
 - **语言**: Rust (安全、高性能)
-- **依赖**:
-  - `windows-rs` - Windows API 绑定
-  - `tokio` - 异步运行时
+- **依赖**: `windows-rs`, `tokio`
 - **代码量**: < 400 行
+
+**GUI 版本**:
+- **后端**: Rust + Tauri 1.5
+- **前端**: React 18 + TypeScript + Vite
+- **特性**: 系统托盘、实时监控、实例管理
 
 ## 📦 项目结构
 
 ```
 wecom-multi-open/
 ├── Cargo.toml                          # Rust 项目配置
+├── tauri.conf.json                     # Tauri 配置
+├── build.rs                            # 构建脚本
 ├── src/
-│   └── main.rs                         # 核心代码 (300 行)
+│   ├── lib.rs                          # 核心库 (327 行)
+│   ├── main.rs                         # CLI 版本 (45 行)
+│   └── gui.rs                          # GUI 版本 (180 行)
+├── ui/                                 # React 前端
+│   ├── src/
+│   │   ├── App.tsx                     # 主组件
+│   │   └── main.tsx                    # 入口
+│   └── package.json
+├── icons/                              # 应用图标
+│   ├── icon.png
+│   ├── icon.ico
+│   └── icon.icns
 ├── scripts/
 │   └── wecom-multi-open-simple.ps1    # PowerShell 脚本
 ├── build.bat                           # 一键构建脚本
 ├── README.md                           # 本文档
-├── README_SIMPLE.md                    # 极简指南
+├── GUI_GUIDE.md                        # GUI 使用指南
 └── BUILD_GUIDE.md                      # 构建指南
 ```
 
