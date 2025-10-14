@@ -4,6 +4,13 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// Windows 特定模块
+#[cfg(target_os = "windows")]
+pub mod windows_sandbox;
+
+#[cfg(target_os = "windows")]
+pub mod wecom_manager;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SpawnRequest {
     pub count: u8,
