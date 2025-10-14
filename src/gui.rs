@@ -53,6 +53,44 @@ async fn spawn_instances(
     }
 }
 
+/// Tauri 命令: 关闭单个实例
+#[tauri::command]
+async fn kill_instance(
+    pid: u32,
+    state: tauri::State<'_, AppState>,
+) -> Result<GuiResponse, String> {
+    if platform::process_exists(pid) {
+        match platform::kill_process(pid) {
+            Ok(_) => {
+                // 从状态中移除此 PID
+                let mut pids = state.pids.lock().unwrap();
+                pids.retain(|&p| p != pid);
+
+                Ok(GuiResponse {
+                    success: true,
+                    message: format!("已关闭实例 {}", pid),
+                    pids: pids.clone(),
+                })
+            }
+            Err(e) => Ok(GuiResponse {
+                success: false,
+                message: format!("关闭实例失败: {}", e),
+                pids: vec![],
+            }),
+        }
+    } else {
+        // 进程不存在,从列表中移除
+        let mut pids = state.pids.lock().unwrap();
+        pids.retain(|&p| p != pid);
+
+        Ok(GuiResponse {
+            success: true,
+            message: format!("实例 {} 已不存在", pid),
+            pids: pids.clone(),
+        })
+    }
+}
+
 /// Tauri 命令: 关闭所有实例
 #[tauri::command]
 async fn kill_all_instances(state: tauri::State<'_, AppState>) -> Result<GuiResponse, String> {
@@ -137,37 +175,41 @@ fn main() {
             let window = app.get_webview_window("main").unwrap();
 
             // 应用原生窗口效果
+            // 注意: 在非透明窗口下,vibrancy 效果可能不会生效
+            // 目前使用 CSS 样式模拟平台特定的视觉效果
+
             #[cfg(target_os = "macos")]
             {
-                use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-                apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
-                    .expect("应用 macOS 毛玻璃效果失败");
+                // macOS 的 vibrancy 效果需要透明窗口
+                // 当前配置下已禁用,使用 CSS glass-effect 代替
+                // use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+                // let _ = apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None);
             }
 
             #[cfg(target_os = "windows")]
             {
-                use window_vibrancy::apply_mica;
-                // Windows 11 云母效果
-                apply_mica(&window, Some(true))
-                    .or_else(|_| {
-                        // 降级到模糊效果
-                        window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
-                    })
-                    .expect("应用 Windows 效果失败");
+                // Windows 11 的 Mica 效果需要特定配置
+                // 当前配置下已禁用,使用 CSS glass-effect 代替
+                // use window_vibrancy::apply_mica;
+                // let _ = apply_mica(&window, Some(true))
+                //     .or_else(|_| {
+                //         window_vibrancy::apply_blur(&window, Some((18, 18, 18, 125)))
+                //     });
             }
 
             Ok(())
         })
-        .on_window_event(|window, event| match event {
-            WindowEvent::CloseRequested { api, .. } => {
-                // 关闭窗口时最小化到托盘而不是退出
-                window.hide().unwrap();
-                api.prevent_close();
+        .on_window_event(|_window, event| match event {
+            WindowEvent::CloseRequested { .. } => {
+                // 允许正常关闭窗口
+                // window.hide().unwrap();
+                // api.prevent_close();
             }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             spawn_instances,
+            kill_instance,
             kill_all_instances,
             get_running_instances,
         ])

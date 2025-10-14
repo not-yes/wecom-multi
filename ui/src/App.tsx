@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { Play, Square, RefreshCw, Trash2 } from 'lucide-react'
+import { Play, Square, RefreshCw, Trash2, Plus, Minus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from './components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { useTheme } from './hooks/useTheme'
 import './styles/globals.css'
 
 interface GuiResponse {
@@ -13,10 +14,23 @@ interface GuiResponse {
 }
 
 function App() {
-  const [instanceCount, setInstanceCount] = useState(3)
+  const [instanceCount, setInstanceCount] = useState(2)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [runningPids, setRunningPids] = useState<number[]>([])
+
+  // 自动切换暗黑模式
+  useTheme()
+
+  // 检测平台并添加对应的 class
+  useEffect(() => {
+    const platform = navigator.platform.toLowerCase()
+    if (platform.includes('mac')) {
+      document.documentElement.classList.add('platform-macos')
+    } else if (platform.includes('win')) {
+      document.documentElement.classList.add('platform-windows')
+    }
+  }, [])
 
   // 自动刷新运行的实例
   useEffect(() => {
@@ -52,6 +66,16 @@ function App() {
     }
   }
 
+  async function handleKillInstance(pid: number) {
+    try {
+      const response = await invoke<GuiResponse>('kill_instance', { pid })
+      setMessage(response.message)
+      await loadRunningInstances()
+    } catch (error) {
+      setMessage(`关闭实例失败: ${error}`)
+    }
+  }
+
   async function handleKillAll() {
     setLoading(true)
     setMessage('')
@@ -68,12 +92,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
-      {/* 可拖动标题栏区域 */}
-      <div data-tauri-drag-region className="titlebar" />
+    <div className="min-h-screen bg-background">
+      {/* 可拖动标题栏区域 - 暂时隐藏以使用系统默认标题栏 */}
+      {/* <div data-tauri-drag-region className="titlebar" /> */}
 
       {/* 主内容区域 */}
-      <div className="container mx-auto p-6 pt-14 max-w-4xl">
+      <div className="w-full h-full p-4">
         <AnimatePresence mode="wait">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -81,110 +105,107 @@ function App() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            {/* 标题卡片 */}
-            <Card className="mb-6 glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="text-2xl font-semibold tracking-tight">
-                  企业微信多开工具
-                </CardTitle>
-                <CardDescription>
-                  同时运行多个企业微信实例,支持不同账号登录
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
             {/* 控制面板 */}
             <Card className="mb-6 glass-effect border-border/50">
-              <CardContent className="pt-6">
-                <div className="space-y-6">
-                  {/* 实例数量选择 */}
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-3 block">
-                      选择实例数量
-                    </label>
-                    <div className="flex gap-2">
-                      {[2, 3, 5, 10].map((count) => (
-                        <Button
-                          key={count}
-                          variant={instanceCount === count ? 'default' : 'outline'}
-                          size="lg"
-                          onClick={() => setInstanceCount(count)}
-                          disabled={loading}
-                          className="flex-1 transition-all duration-150"
-                        >
-                          {count} 个
-                        </Button>
-                      ))}
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-semibold">企业微信多开工具</CardTitle>
+                <CardDescription className="text-xs">
+                  同时运行多个企业微信实例
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* 操作区域 */}
+                <div className="flex items-center gap-3">
+                  {/* 数量控制 */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setInstanceCount(Math.max(1, instanceCount - 1))}
+                      disabled={loading || instanceCount <= 1}
+                      className="h-9 w-9 transition-all duration-200"
+                    >
+                      <Minus className="w-4 h-4" strokeWidth={2} />
+                    </Button>
+                    <div className="min-w-[60px] text-center">
+                      <div className="text-2xl font-semibold">{instanceCount}</div>
+                      <div className="text-xs text-muted-foreground">实例</div>
                     </div>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setInstanceCount(Math.min(20, instanceCount + 1))}
+                      disabled={loading || instanceCount >= 20}
+                      className="h-9 w-9 transition-all duration-200"
+                    >
+                      <Plus className="w-4 h-4" strokeWidth={2} />
+                    </Button>
                   </div>
 
                   {/* 操作按钮 */}
-                  <div className="flex gap-3">
-                    <Button
-                      size="lg"
-                      onClick={handleSpawn}
-                      disabled={loading}
-                      className="flex-1 gap-2 transition-all duration-150"
-                    >
-                      <Play className="w-4 h-4" strokeWidth={2} />
-                      启动实例
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={loadRunningInstances}
-                      disabled={loading}
-                      className="gap-2 transition-all duration-150"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={2} />
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="destructive"
-                      onClick={handleKillAll}
-                      disabled={loading || runningPids.length === 0}
-                      className="gap-2 transition-all duration-150"
-                    >
-                      <Square className="w-4 h-4" strokeWidth={2} />
-                      停止全部
-                    </Button>
-                  </div>
-
-                  {/* 状态消息 */}
-                  <AnimatePresence>
-                    {message && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="rounded-lg bg-muted px-4 py-3 text-sm text-muted-foreground"
-                      >
-                        {message}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <Button
+                    size="lg"
+                    onClick={handleSpawn}
+                    disabled={loading}
+                    className="flex-1 gap-2 transition-all duration-200"
+                  >
+                    <Play className="w-4 h-4" strokeWidth={2} />
+                    启动
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={loadRunningInstances}
+                    disabled={loading}
+                    className="h-10 w-10 transition-all duration-200"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} strokeWidth={2} />
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="destructive"
+                    onClick={handleKillAll}
+                    disabled={loading || runningPids.length === 0}
+                    className="gap-2 transition-all duration-200"
+                  >
+                    <Square className="w-4 h-4" strokeWidth={2} />
+                    全部停止
+                  </Button>
                 </div>
+
+                {/* 状态消息 */}
+                <AnimatePresence>
+                  {message && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground"
+                    >
+                      {message}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </CardContent>
             </Card>
 
             {/* 运行中的实例 */}
             <Card className="glass-effect border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg font-medium">
-                  运行中的实例
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-medium flex items-center justify-between">
+                  <span>运行中的实例</span>
                   {runningPids.length > 0 && (
-                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                      ({runningPids.length} 个)
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {runningPids.length} 个
                     </span>
                   )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {runningPids.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <p className="text-sm">暂无运行中的实例</p>
-                    <p className="text-xs mt-2">点击"启动实例"开始</p>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p className="text-xs">暂无运行中的实例</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -195,26 +216,23 @@ function App() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20 }}
-                          transition={{ duration: 0.15, delay: index * 0.05 }}
-                          className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors duration-150"
+                          transition={{ duration: 0.2, delay: index * 0.05, ease: 'easeInOut' }}
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors duration-200"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                             <div>
-                              <p className="text-sm font-medium">实例 {index + 1}</p>
-                              <p className="text-xs text-muted-foreground">PID: {pid}</p>
+                              <p className="text-xs font-medium">实例 {index + 1}</p>
+                              <p className="text-[10px] text-muted-foreground">PID: {pid}</p>
                             </div>
                           </div>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 transition-colors duration-150"
-                            onClick={async () => {
-                              // TODO: 实现单个实例停止功能
-                              console.log('停止实例:', pid)
-                            }}
+                            className="h-7 w-7 transition-colors duration-200"
+                            onClick={() => handleKillInstance(pid)}
                           >
-                            <Trash2 className="w-4 h-4" strokeWidth={2} />
+                            <Trash2 className="w-3.5 h-3.5" strokeWidth={2} />
                           </Button>
                         </motion.div>
                       ))}
@@ -225,9 +243,8 @@ function App() {
             </Card>
 
             {/* 底部提示 */}
-            <div className="mt-6 text-center text-xs text-muted-foreground">
-              <p>企业微信多开工具 v0.3.2</p>
-              <p className="mt-1">支持 Windows 和 macOS</p>
+            <div className="mt-4 text-center text-[10px] text-muted-foreground">
+              <p>v0.3.2 · 支持 Windows 和 macOS</p>
             </div>
           </motion.div>
         </AnimatePresence>

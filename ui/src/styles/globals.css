@@ -131,6 +131,73 @@
   background-color: rgba(17, 17, 17, 0.72);
 }
 
+/* macOS 特有样式 - 更细腻的阴影和圆角 */
+.platform-macos .glass-effect {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.platform-macos .dark .glass-effect {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Windows 特有样式 - Fluent Design System */
+.platform-windows .glass-effect {
+  /* Windows 11 风格的边框和阴影 */
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+  /* 更柔和的背景 */
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.platform-windows .dark .glass-effect {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5), 0 0 1px rgba(255, 255, 255, 0.05);
+  background-color: rgba(30, 30, 30, 0.8);
+}
+
+/* Windows 按钮悬停效果 - 更明显的反馈 */
+.platform-windows button:hover {
+  transform: translateY(-1px);
+}
+
+.platform-windows button:active {
+  transform: translateY(0);
+}
+
+/* Windows 圆角调整 - 更小的圆角符合 Windows 11 设计 */
+.platform-windows .glass-effect {
+  border-radius: 8px;
+}
+
+/* Windows 滚动条样式 - 更宽更明显 */
+.platform-windows ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.platform-windows ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.platform-windows .dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.platform-windows ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+  background-clip: padding-box;
+}
+
+.platform-windows .dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+  background-clip: padding-box;
+}
+
 /* 红绿灯按钮区域 - 可拖动 */
 .titlebar {
   height: 32px;

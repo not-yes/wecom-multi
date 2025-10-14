@@ -23,8 +23,8 @@
   "identifier": "com.wecom.multiopen",
   "plugins": {},
   "app": {
-    "macOSPrivateApi": true,
     "withGlobalTauri": false,
+    "macOSPrivateApi": false,
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
@@ -39,15 +39,15 @@
         "fullscreen": false,
         "resizable": true,
         "title": "企业微信多开工具",
-        "width": 900,
-        "height": 650,
-        "minWidth": 700,
-        "minHeight": 550,
+        "width": 650,
+        "height": 580,
+        "minWidth": 550,
+        "minHeight": 500,
         "center": true,
         "decorations": true,
-        "transparent": true,
-        "titleBarStyle": "Overlay",
-        "hiddenTitle": true,
+        "transparent": false,
+        "titleBarStyle": "Transparent",
+        "hiddenTitle": false,
         "useHttpsScheme": true
       }
     ]
