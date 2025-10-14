@@ -41,19 +41,37 @@ jobs:
         working-directory: ./ui
         run: npm run build
 
-      - name: Build Tauri app
-        run: cargo build --release --features gui --bin wecom-multi-open
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
 
-      - name: Upload macOS artifact
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: wecom-multi-open-macos
-          path: target/release/wecom-multi-open
+      - name: Build Tauri app bundles
+        run: cargo tauri build
 
-      - name: Upload Windows artifact
+      - name: Upload Windows MSI
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: wecom-multi-open-windows
-          path: target/release/wecom-multi-open.exe
+          name: wecom-multi-open-windows-msi
+          path: target/release/bundle/msi/*.msi
+
+      - name: Upload Windows NSIS
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wecom-multi-open-windows-nsis
+          path: target/release/bundle/nsis/*.exe
+        continue-on-error: true
+
+      - name: Upload macOS DMG
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wecom-multi-open-macos-dmg
+          path: target/release/bundle/dmg/*.dmg
+
+      - name: Upload macOS App
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: wecom-multi-open-macos-app
+          path: target/release/bundle/macos/*.app
