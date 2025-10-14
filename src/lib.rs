@@ -353,23 +353,68 @@ pub mod platform {
             // 为每个实例创建独立的应用副本
             match create_app_instance(&source_app, i + 1) {
                 Ok(instance_path) => {
-                    // 启动实例
+                    // 启动实例 - 使用直接启动可执行文件的方式,更稳定
                     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
 
-                    match Command::new("open")
-                        .arg("-n")
-                        .arg("-a")
-                        .arg(&instance_path)
-                        .spawn()
-                    {
+                    // 为每个实例创建独立的数据目录
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+                    let instance_home = PathBuf::from(format!("{}/Library/Containers/WeComInstance{}", home, i + 1));
+
+                    // 创建实例专用的数据目录
+                    if !instance_home.exists() {
+                        let _ = fs::create_dir_all(&instance_home);
+                        println!("创建实例 {} 数据目录: {}", i + 1, instance_home.display());
+                    }
+
+                    // 获取可执行文件路径
+                    let executable = instance_path.join("Contents/MacOS");
+                    let app_name = source_app
+                        .file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("WeChat");
+                    let executable_path = executable.join(app_name);
+
+                    // 尝试两种启动方式
+                    // 方式1: 直接启动可执行文件 (推荐,更稳定)
+                    // 设置多个环境变量,尽可能让每个实例使用独立的数据目录
+
+                    // 创建 Documents 目录
+                    let instance_documents = instance_home.join("Documents");
+                    let _ = fs::create_dir_all(&instance_documents);
+
+                    let launch_result = Command::new(&executable_path)
+                        .env("HOME", &instance_home)
+                        .env("TMPDIR", format!("{}/tmp", instance_home.display()))
+                        .env("XDG_CONFIG_HOME", format!("{}/config", instance_home.display()))
+                        .env("XDG_DATA_HOME", format!("{}/data", instance_home.display()))
+                        .env("XDG_CACHE_HOME", format!("{}/cache", instance_home.display()))
+                        .spawn();
+
+                    match launch_result {
                         Ok(child) => {
-                            pids.push(child.id());
+                            let pid = child.id();
+                            pids.push(pid);
                             success += 1;
-                            println!("✓ 实例 {} 启动成功: {}", i + 1, instance_path.display());
+                            println!("✓ 实例 {} 启动成功 (PID: {}, 数据目录: {})", i + 1, pid, instance_home.display());
                         }
                         Err(e) => {
-                            eprintln!("✗ 启动实例 {} 失败: {}", i + 1, e);
-                            failed += 1;
+                            // 方式2: 如果直接启动失败,尝试使用 open -n
+                            eprintln!("直接启动失败,尝试使用 open 命令: {}", e);
+                            match Command::new("open")
+                                .arg("-n")
+                                .arg(&instance_path)
+                                .spawn()
+                            {
+                                Ok(child) => {
+                                    pids.push(child.id());
+                                    success += 1;
+                                    println!("✓ 实例 {} 使用 open 命令启动成功: {}", i + 1, instance_path.display());
+                                }
+                                Err(e2) => {
+                                    eprintln!("✗ 启动实例 {} 失败: {}", i + 1, e2);
+                                    failed += 1;
+                                }
+                            }
                         }
                     }
                 }

@@ -2,20 +2,15 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, WindowEvent};
-use wecom_multi_open::{platform, SpawnRequest, SpawnResponse};
+use wecom_multi_open::{platform, SpawnRequest};
 
 /// 应用状态
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct AppState {
     /// 当前运行的实例 PID 列表
     pids: Arc<Mutex<Vec<u32>>>,
 }
 
-/// GUI 启动请求
-#[derive(Debug, Serialize, Deserialize)]
-struct GuiSpawnRequest {
-    count: u8,
-}
 
 /// GUI 响应
 #[derive(Debug, Serialize, Deserialize)]
@@ -89,7 +84,7 @@ async fn kill_all_instances(state: tauri::State<'_, AppState>) -> Result<GuiResp
 async fn get_running_instances(
     state: tauri::State<'_, AppState>,
 ) -> Result<GuiResponse, String> {
-    let pids = state.pids.lock().unwrap();
+    let mut pids = state.pids.lock().unwrap();
 
     // 过滤出仍在运行的进程
     let running_pids: Vec<u32> = pids
@@ -98,11 +93,39 @@ async fn get_running_instances(
         .filter(|&pid| platform::process_exists(pid))
         .collect();
 
+    // 更新 PID 列表,移除已经不存在的进程
+    *pids = running_pids.clone();
+
     Ok(GuiResponse {
         success: true,
         message: format!("当前运行 {} 个实例", running_pids.len()),
         pids: running_pids,
     })
+}
+
+/// 清理所有子进程
+fn cleanup_all_processes(state: &AppState) {
+    let pids = state.pids.lock().unwrap();
+    let count = pids.len();
+
+    println!("应用退出,清理 {} 个子进程...", count);
+
+    let mut killed = 0;
+    for &pid in pids.iter() {
+        if platform::process_exists(pid) {
+            match platform::kill_process(pid) {
+                Ok(_) => {
+                    println!("✓ 已关闭进程 {}", pid);
+                    killed += 1;
+                }
+                Err(e) => {
+                    eprintln!("✗ 关闭进程 {} 失败: {}", pid, e);
+                }
+            }
+        }
+    }
+
+    println!("清理完成: 已关闭 {} / {} 个进程", killed, count);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -123,6 +146,14 @@ fn main() {
             kill_all_instances,
             get_running_instances,
         ])
-        .run(tauri::generate_context!())
-        .expect("启动 Tauri 应用失败");
+        .build(tauri::generate_context!())
+        .expect("启动 Tauri 应用失败")
+        .run(|app_handle, event| {
+            // 监听应用退出事件
+            if let tauri::RunEvent::Exit = event {
+                println!("应用正在退出,开始清理子进程...");
+                let state = app_handle.state::<AppState>();
+                cleanup_all_processes(state.inner());
+            }
+        });
 }
