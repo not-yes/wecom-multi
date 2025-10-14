@@ -151,7 +151,7 @@ jobs:
         run: cargo install tauri-cli --version "^1.5"
 
       - name: Build Tauri app
-        run: cargo tauri build --target ${{ matrix.target }} --features custom-protocol
+        run: cargo tauri build --target ${{ matrix.target }} --features gui,custom-protocol
 
       - name: Upload Windows MSI
         if: matrix.platform == 'windows'
