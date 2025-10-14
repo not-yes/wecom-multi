@@ -1,10 +1,7 @@
 // GUI 版本 - Tauri 图形界面
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use tauri::{
-    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
-    Window, WindowEvent,
-};
+use tauri::{Manager, WindowEvent};
 use wecom_multi_open::{platform, SpawnRequest, SpawnResponse};
 
 /// 应用状态
@@ -108,87 +105,15 @@ async fn get_running_instances(
     })
 }
 
-/// 创建系统托盘
-fn create_system_tray() -> SystemTray {
-    let quit = CustomMenuItem::new("quit".to_string(), "退出");
-    let show = CustomMenuItem::new("show".to_string(), "显示窗口");
-    let launch_3 = CustomMenuItem::new("launch_3".to_string(), "启动 3 个实例");
-    let launch_5 = CustomMenuItem::new("launch_5".to_string(), "启动 5 个实例");
-    let kill_all = CustomMenuItem::new("kill_all".to_string(), "关闭所有实例");
-
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(show)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(launch_3)
-        .add_item(launch_5)
-        .add_item(kill_all)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(quit);
-
-    SystemTray::new().with_menu(tray_menu)
-}
-
-/// 处理系统托盘事件
-fn handle_system_tray_event(app: &tauri::AppHandle, event: SystemTrayEvent) {
-    match event {
-        SystemTrayEvent::LeftClick { .. } => {
-            // 左键点击显示窗口
-            if let Some(window) = app.get_window("main") {
-                window.show().unwrap();
-                window.set_focus().unwrap();
-            }
-        }
-        SystemTrayEvent::MenuItemClick { id, .. } => {
-            match id.as_str() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "show" => {
-                    if let Some(window) = app.get_window("main") {
-                        window.show().unwrap();
-                        window.set_focus().unwrap();
-                    }
-                }
-                "launch_3" => {
-                    // 启动 3 个实例
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let state = app_handle.state::<AppState>();
-                        let _ = spawn_instances(3, state).await;
-                    });
-                }
-                "launch_5" => {
-                    // 启动 5 个实例
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let state = app_handle.state::<AppState>();
-                        let _ = spawn_instances(5, state).await;
-                    });
-                }
-                "kill_all" => {
-                    // 关闭所有实例
-                    let app_handle = app.clone();
-                    tauri::async_runtime::spawn(async move {
-                        let state = app_handle.state::<AppState>();
-                        let _ = kill_all_instances(state).await;
-                    });
-                }
-                _ => {}
-            }
-        }
-        _ => {}
-    }
-}
-
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
-        .system_tray(create_system_tray())
-        .on_system_tray_event(handle_system_tray_event)
-        .on_window_event(|event| match event.event() {
+        .on_window_event(|window, event| match event {
             WindowEvent::CloseRequested { api, .. } => {
                 // 关闭窗口时最小化到托盘而不是退出
-                event.window().hide().unwrap();
+                window.hide().unwrap();
                 api.prevent_close();
             }
             _ => {}
