@@ -38,7 +38,6 @@ pub mod platform {
     use windows::{
         core::*, Win32::Foundation::*,
         Win32::System::Threading::*,
-        Win32::System::WindowsProgramming::*,
     };
 
     const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.ExclusiveObject";
@@ -322,7 +321,6 @@ pub mod platform {
     /// 查找所有正在运行的企业微信进程
     pub fn find_wecom_processes() -> Vec<u32> {
         use windows::Win32::System::ProcessStatus::*;
-        use windows::Win32::System::SystemServices::*;
 
         let mut pids = Vec::new();
 
@@ -355,8 +353,13 @@ pub mod platform {
                         let mut exe_path = vec![0u16; 260];
                         let mut size = exe_path.len() as u32;
 
-                        if QueryFullProcessImageNameW(h_process, PROCESS_NAME_WIN32, &mut exe_path, &mut size)
-                            .is_ok()
+                        if QueryFullProcessImageNameW(
+                            h_process,
+                            PROCESS_NAME_WIN32,
+                            PWSTR(exe_path.as_mut_ptr()),
+                            &mut size
+                        )
+                        .is_ok()
                         {
                             let path = String::from_utf16_lossy(&exe_path[..size as usize]);
 
