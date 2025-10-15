@@ -19,7 +19,7 @@
   },
   "productName": "wecom-multi-open",
   "mainBinaryName": "wecom-multi-open",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "identifier": "com.wecom.multiopen",
   "plugins": {},
   "app": {
