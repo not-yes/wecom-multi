@@ -74,8 +74,18 @@ pub mod platform {
 
         for i in 0..req.count {
             // 关闭 Mutex
-            if let Err(e) = close_mutex(WECOM_MUTEX_NAME) {
-                eprintln!("关闭 Mutex 失败: {}", e);
+            match close_mutex(WECOM_MUTEX_NAME) {
+                Ok(_) => {
+                    println!("✓ 成功关闭 Mutex,准备启动实例 {}", i + 1);
+                }
+                Err(e) => {
+                    // 如果是第一个实例,mutex 不存在是正常的
+                    if i == 0 {
+                        println!("⚠ 未找到 Mutex (可能是首次启动): {}", e);
+                    } else {
+                        eprintln!("✗ 关闭 Mutex 失败: {}", e);
+                    }
+                }
             }
 
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -85,9 +95,10 @@ pub mod platform {
                 Ok(pid) => {
                     pids.push(pid);
                     success += 1;
+                    println!("✓ 实例 {} 启动成功 (PID: {})", i + 1, pid);
                 }
                 Err(e) => {
-                    eprintln!("启动实例 {} 失败: {}", i + 1, e);
+                    eprintln!("✗ 启动实例 {} 失败: {}", i + 1, e);
                     failed += 1;
                 }
             }
@@ -118,7 +129,7 @@ pub mod platform {
             );
 
             if status != 0 {
-                return Err(format!("查询系统信息失败: status={}", status));
+                return Err(format!("查询系统信息失败: status=0x{:X}", status));
             }
 
             let info = &*(buf.as_ptr() as *const SYSTEM_HANDLE_INFORMATION_EX);
@@ -126,6 +137,10 @@ pub mod platform {
 
             let target_name = name.to_lowercase();
             let mut closed_count = 0;
+            let mut mutex_count = 0;
+            let mut checked_count = 0;
+
+            eprintln!("[调试] 开始扫描系统句柄,总数: {}", info.NumberOfHandles);
 
             for h in handles {
                 // 跳过当前进程的句柄
@@ -138,6 +153,8 @@ pub mod platform {
                 if h.ObjectTypeIndex != 17 {
                     continue;
                 }
+
+                mutex_count += 1;
 
                 if let Ok(h_process) = OpenProcess(PROCESS_DUP_HANDLE, false, h.UniqueProcessId) {
                     let mut h_dup = HANDLE::default();
@@ -156,8 +173,12 @@ pub mod platform {
                     {
                         // 查询对象名称
                         if let Some(obj_name) = query_object_name(h_dup) {
+                            checked_count += 1;
+
                             // 检查名称是否匹配目标 mutex
                             if obj_name.to_lowercase().contains(&target_name) {
+                                eprintln!("[调试] 找到目标 Mutex: {} (PID: {})", obj_name, h.UniqueProcessId);
+
                                 // 关闭源进程中的句柄
                                 let mut h_temp = HANDLE::default();
                                 if DuplicateHandle(
@@ -173,6 +194,7 @@ pub mod platform {
                                 {
                                     let _ = CloseHandle(h_temp);
                                     closed_count += 1;
+                                    eprintln!("[调试] 已关闭 Mutex");
                                 }
                             }
                         }
@@ -184,10 +206,14 @@ pub mod platform {
                 }
             }
 
+            eprintln!("[调试] 扫描完成 - Mutex类型句柄: {}, 成功查询名称: {}, 关闭数量: {}",
+                mutex_count, checked_count, closed_count);
+
             if closed_count > 0 {
                 Ok(())
             } else {
-                Err(format!("未找到名为 '{}' 的 Mutex 对象", name))
+                Err(format!("未找到名为 '{}' 的 Mutex (扫描了 {} 个 Mutex 句柄,成功查询 {} 个名称)",
+                    name, mutex_count, checked_count))
             }
         }
     }
