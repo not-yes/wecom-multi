@@ -299,6 +299,28 @@ async fn check_sandboxie_available() -> Result<bool, String> {
     }
 }
 
+/// Tauri 命令: 清除路径缓存
+#[tauri::command]
+async fn clear_path_cache() -> Result<GuiResponse, String> {
+    #[cfg(target_os = "windows")]
+    {
+        platform::clear_path_cache();
+        Ok(GuiResponse {
+            success: true,
+            message: "✓ 已清除路径缓存,下次启动将重新检测".to_string(),
+            pids: vec![],
+        })
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(GuiResponse {
+            success: false,
+            message: "此功能仅支持Windows平台".to_string(),
+            pids: vec![],
+        })
+    }
+}
+
 /// 清理所有子进程
 fn cleanup_all_processes(state: &AppState) {
     let keep_on_exit = *state.keep_on_exit.lock().unwrap();
@@ -380,6 +402,7 @@ fn main() {
             set_keep_on_exit,
             get_keep_on_exit,
             check_sandboxie_available,
+            clear_path_cache,
         ])
         .build(tauri::generate_context!())
         .expect("启动 Tauri 应用失败")

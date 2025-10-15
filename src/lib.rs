@@ -55,6 +55,8 @@ pub struct ProcessInfo {
 pub mod platform {
     use super::*;
     use std::{ffi::OsStr, mem, os::windows::ffi::OsStrExt, slice, time::Duration};
+    use std::sync::{Mutex, OnceLock};
+    use std::collections::HashMap;
     use windows::{
         core::*, Win32::Foundation::*,
         Win32::System::Threading::*,
@@ -65,15 +67,56 @@ pub mod platform {
     const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.Exclusive"; // 企业微信 Mutex
     const WECHAT_MUTEX_NAME: &str = "_WeChat_App_Instance_Identity_Mutex_Name"; // 个人微信 Mutex
 
+    /// 路径缓存 (应用类型 -> 路径)
+    static PATH_CACHE: OnceLock<Mutex<HashMap<AppType, PathBuf>>> = OnceLock::new();
+
+    /// 获取路径缓存
+    fn get_path_cache() -> &'static Mutex<HashMap<AppType, PathBuf>> {
+        PATH_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    /// 从缓存获取路径
+    fn get_cached_path(app_type: &AppType) -> Option<PathBuf> {
+        let cache = get_path_cache().lock().ok()?;
+        cache.get(app_type).cloned()
+    }
+
+    /// 缓存路径
+    fn cache_path(app_type: AppType, path: PathBuf) {
+        if let Ok(mut cache) = get_path_cache().lock() {
+            cache.insert(app_type, path);
+        }
+    }
+
+    /// 清除缓存
+    pub fn clear_path_cache() {
+        if let Ok(mut cache) = get_path_cache().lock() {
+            cache.clear();
+            println!("✓ 已清除路径缓存");
+        }
+    }
+
     pub fn get_default_app_path() -> PathBuf {
         get_default_app_path_by_type(AppType::WeCom)
     }
 
     pub fn get_default_app_path_by_type(app_type: AppType) -> PathBuf {
+        // 优先级0: 从缓存获取 (最快)
+        if let Some(cached_path) = get_cached_path(&app_type) {
+            if cached_path.exists() {
+                println!("✓ 从缓存读取路径: {}", cached_path.display());
+                return cached_path;
+            } else {
+                // 缓存的路径已失效,清除该缓存
+                println!("⚠ 缓存路径已失效,重新检测");
+            }
+        }
+
         // 优先级1: 从注册表读取安装路径
         if let Some(path) = get_path_from_registry(app_type.clone()) {
             if path.exists() {
                 println!("✓ 从注册表找到路径: {}", path.display());
+                cache_path(app_type.clone(), path.clone());
                 return path;
             }
         }
@@ -82,6 +125,7 @@ pub mod platform {
         if let Some(path) = get_path_from_running_process(app_type.clone()) {
             if path.exists() {
                 println!("✓ 从运行进程找到路径: {}", path.display());
+                cache_path(app_type.clone(), path.clone());
                 return path;
             }
         }
@@ -89,14 +133,22 @@ pub mod platform {
         // 优先级3: 扫描常见安装目录
         if let Some(path) = scan_common_directories(app_type.clone()) {
             println!("✓ 从常见目录找到路径: {}", path.display());
+            cache_path(app_type.clone(), path.clone());
             return path;
         }
 
         // 优先级4: 返回默认路径
-        match app_type {
+        let default_path = match app_type {
             AppType::WeCom => PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe"),
             AppType::WeChat => PathBuf::from(r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe"),
+        };
+
+        // 如果默认路径存在,也缓存它
+        if default_path.exists() {
+            cache_path(app_type, default_path.clone());
         }
+
+        default_path
     }
 
     /// 从注册表读取应用安装路径
