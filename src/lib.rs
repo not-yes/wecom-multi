@@ -11,10 +11,23 @@ pub mod windows_sandbox;
 #[cfg(target_os = "windows")]
 pub mod wecom_manager;
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum AppType {
+    WeCom,   // 企业微信
+    WeChat,  // 个人微信
+}
+
+impl Default for AppType {
+    fn default() -> Self {
+        AppType::WeCom
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SpawnRequest {
     pub count: u8,
     pub app_path: Option<PathBuf>,
+    pub app_type: Option<AppType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -40,32 +53,74 @@ pub mod platform {
         Win32::System::Threading::*,
     };
 
-    const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.Exclusive"; // 匹配所有相关 Mutex
+    const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.Exclusive"; // 企业微信 Mutex
+    const WECHAT_MUTEX_NAME: &str = "_WeChat_App_Instance_Identity_Mutex_Name"; // 个人微信 Mutex
 
     pub fn get_default_app_path() -> PathBuf {
-        let possible_paths = vec![
-            r"C:\Program Files (x86)\WXWork\WXWork.exe",
-            r"C:\Program Files\WXWork\WXWork.exe",
-            r"D:\Program Files (x86)\WXWork\WXWork.exe",
-            r"D:\Program Files\WXWork\WXWork.exe",
-        ];
+        get_default_app_path_by_type(AppType::WeCom)
+    }
 
-        for path in possible_paths {
-            let p = PathBuf::from(path);
-            if p.exists() {
-                return p;
+    pub fn get_default_app_path_by_type(app_type: AppType) -> PathBuf {
+        match app_type {
+            AppType::WeCom => {
+                let possible_paths = vec![
+                    r"C:\Program Files (x86)\WXWork\WXWork.exe",
+                    r"C:\Program Files\WXWork\WXWork.exe",
+                    r"D:\Program Files (x86)\WXWork\WXWork.exe",
+                    r"D:\Program Files\WXWork\WXWork.exe",
+                ];
+
+                for path in possible_paths {
+                    let p = PathBuf::from(path);
+                    if p.exists() {
+                        return p;
+                    }
+                }
+
+                PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe")
+            }
+            AppType::WeChat => {
+                let possible_paths = vec![
+                    r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe",
+                    r"C:\Program Files\Tencent\WeChat\WeChat.exe",
+                    r"D:\Program Files (x86)\Tencent\WeChat\WeChat.exe",
+                    r"D:\Program Files\Tencent\WeChat\WeChat.exe",
+                    r"C:\Program Files (x86)\WeChat\WeChat.exe",
+                    r"C:\Program Files\WeChat\WeChat.exe",
+                ];
+
+                for path in possible_paths {
+                    let p = PathBuf::from(path);
+                    if p.exists() {
+                        return p;
+                    }
+                }
+
+                PathBuf::from(r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe")
             }
         }
-
-        PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe")
     }
 
     pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
-        let exe = req.app_path.unwrap_or(get_default_app_path());
+        let app_type = req.app_type.unwrap_or_default();
+        let exe = req.app_path.unwrap_or_else(|| get_default_app_path_by_type(app_type.clone()));
 
         if !exe.exists() {
             return Err(format!("应用程序不存在: {:?}", exe));
         }
+
+        // 根据应用类型选择 Mutex 名称
+        let mutex_name = match app_type {
+            AppType::WeCom => WECOM_MUTEX_NAME,
+            AppType::WeChat => WECHAT_MUTEX_NAME,
+        };
+
+        let app_name = match app_type {
+            AppType::WeCom => "企业微信",
+            AppType::WeChat => "微信",
+        };
+
+        println!("准备启动 {} {} 个实例", app_name, req.count);
 
         let mut pids = vec![];
         let mut success = 0;
@@ -73,7 +128,7 @@ pub mod platform {
 
         for i in 0..req.count {
             // 关闭 Mutex
-            match close_mutex(WECOM_MUTEX_NAME) {
+            match close_mutex(mutex_name) {
                 Ok(_) => {
                     println!("✓ 成功关闭 Mutex,准备启动实例 {}", i + 1);
                 }
@@ -325,9 +380,23 @@ pub mod platform {
 
     /// 查找所有正在运行的企业微信进程
     pub fn find_wecom_processes() -> Vec<u32> {
+        find_processes_by_type(AppType::WeCom)
+    }
+
+    /// 查找所有正在运行的微信进程
+    pub fn find_wechat_processes() -> Vec<u32> {
+        find_processes_by_type(AppType::WeChat)
+    }
+
+    /// 根据应用类型查找进程
+    pub fn find_processes_by_type(app_type: AppType) -> Vec<u32> {
         use windows::Win32::System::ProcessStatus::*;
 
         let mut pids = Vec::new();
+        let exe_name = match app_type {
+            AppType::WeCom => "wxwork.exe",
+            AppType::WeChat => "wechat.exe",
+        };
 
         unsafe {
             // 枚举所有进程
@@ -368,8 +437,8 @@ pub mod platform {
                         {
                             let path = String::from_utf16_lossy(&exe_path[..size as usize]);
 
-                            // 检查是否是企业微信进程
-                            if path.to_lowercase().contains("wxwork.exe") {
+                            // 检查是否是目标进程
+                            if path.to_lowercase().contains(exe_name) {
                                 pids.push(pid);
                             }
                         }

@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, WindowEvent};
-use wecom_multi_open::{platform, SpawnRequest};
+use wecom_multi_open::{platform, SpawnRequest, AppType};
 
 /// 应用状态
 #[derive(Clone)]
@@ -35,18 +35,30 @@ struct GuiResponse {
 #[tauri::command]
 async fn spawn_instances(
     count: u8,
+    app_type: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<GuiResponse, String> {
-    println!("收到启动请求: {} 个实例", count);
+    // 解析应用类型
+    let app_type_enum = match app_type.as_deref() {
+        Some("wechat") | Some("WeChat") => AppType::WeChat,
+        _ => AppType::WeCom, // 默认企业微信
+    };
 
-    // 检测已存在的企业微信进程
+    let app_name = match app_type_enum {
+        AppType::WeCom => "企业微信",
+        AppType::WeChat => "微信",
+    };
+
+    println!("收到启动请求: {} {} 个实例", app_name, count);
+
+    // 检测已存在的进程
     #[cfg(target_os = "windows")]
-    let existing_pids = platform::find_wecom_processes();
+    let existing_pids = platform::find_processes_by_type(app_type_enum.clone());
     #[cfg(not(target_os = "windows"))]
     let existing_pids = Vec::new();
 
     if !existing_pids.is_empty() {
-        println!("⚠ 检测到 {} 个已运行的企业微信实例: {:?}", existing_pids.len(), existing_pids);
+        println!("⚠ 检测到 {} 个已运行的{}实例: {:?}", existing_pids.len(), app_name, existing_pids);
 
         // 将已存在的进程添加到管理列表
         let mut pids = state.pids.lock().unwrap();
@@ -60,6 +72,7 @@ async fn spawn_instances(
     let req = SpawnRequest {
         count,
         app_path: None,
+        app_type: Some(app_type_enum),
     };
 
     match platform::spawn_multiple(req).await {
