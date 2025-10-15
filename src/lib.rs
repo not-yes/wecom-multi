@@ -296,14 +296,24 @@ pub mod platform {
         // 获取所有可能的盘符
         let drives = get_available_drives();
 
-        let (app_dirs, exe_name) = match app_type {
+        let (app_dirs, exe_names) = match app_type {
             AppType::WeCom => (
                 vec![
                     r"WXWork",
                     r"Tencent\WXWork",
                     r"企业微信",
                 ],
-                "WXWork.exe",
+                vec![
+                    "WXWork.exe",       // 标准大写
+                    "wxwork.exe",       // 小写
+                    "Wxwork.exe",       // 首字母大写
+                    "WXWORK.EXE",       // 全大写
+                    "wecom.exe",        // 英文版
+                    "WeCom.exe",        // 英文版大写
+                    "wework.exe",       // 别名
+                    "WeWork.exe",       // 别名大写
+                    "企业微信.exe",      // 中文名
+                ],
             ),
             AppType::WeChat => (
                 vec![
@@ -311,7 +321,14 @@ pub mod platform {
                     r"Tencent\WeChat",
                     r"微信",
                 ],
-                "WeChat.exe",
+                vec![
+                    "WeChat.exe",       // 标准
+                    "wechat.exe",       // 小写
+                    "WECHAT.EXE",       // 全大写
+                    "weixin.exe",       // 拼音
+                    "WeiXin.exe",       // 拼音大写
+                    "微信.exe",         // 中文名
+                ],
             ),
         };
 
@@ -326,11 +343,15 @@ pub mod platform {
         for drive in drives {
             for base_dir in &base_dirs {
                 for app_dir in &app_dirs {
-                    let full_path = PathBuf::from(format!(r"{}:\{}\{}\{}",
-                        drive, base_dir, app_dir, exe_name));
+                    // 尝试所有可能的可执行文件名
+                    for exe_name in &exe_names {
+                        let full_path = PathBuf::from(format!(r"{}:\{}\{}\{}",
+                            drive, base_dir, app_dir, exe_name));
 
-                    if full_path.exists() {
-                        return Some(full_path);
+                        if full_path.exists() {
+                            println!("✓ 扫描找到: {}", full_path.display());
+                            return Some(full_path);
+                        }
                     }
                 }
             }
