@@ -142,9 +142,41 @@ When changing timing or logic:
 - Check system resource usage
 
 ### Cross-Compilation
-The project supports building for different targets via GitHub Actions. For local cross-compilation:
-- **macOS → Windows**: `rustup target add x86_64-pc-windows-gnu && cargo build --target x86_64-pc-windows-gnu`
-- Note: Windows API calls may not work in cross-compiled binaries; always test on target platform
+
+The project supports building for different targets via GitHub Actions.
+
+**Quick Windows Compilation Check on macOS:**
+```bash
+# One-command check for Windows compilation errors
+./check-windows.sh
+```
+
+This script:
+- Installs `x86_64-pc-windows-msvc` target if needed
+- Checks all Rust code compiles for Windows
+- Runs in ~10 seconds (vs 15 minutes for GitHub Actions)
+- Does NOT build full installer (requires Windows environment)
+- Perfect for catching compilation errors before pushing
+
+**Manual cross-compilation:**
+```bash
+# Install Windows target
+rustup target add x86_64-pc-windows-msvc
+
+# Check library code
+cargo check --target x86_64-pc-windows-msvc --lib
+
+# Check CLI
+cargo check --target x86_64-pc-windows-msvc --bin wecom-multi-open-cli
+
+# Check GUI (will fail at linking but validates Rust syntax)
+cargo check --target x86_64-pc-windows-msvc --features gui
+```
+
+**Limitations:**
+- Cannot build full Windows installer on macOS (needs WiX toolset)
+- GUI linking requires Windows resources (llvm-rc)
+- Final testing must be done on actual Windows machine or GitHub Actions
 
 ## Key Files
 
