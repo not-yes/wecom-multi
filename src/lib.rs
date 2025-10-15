@@ -40,7 +40,7 @@ pub mod platform {
         Win32::System::Threading::*,
     };
 
-    const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.ExclusiveObject";
+    const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.Exclusive"; // 匹配所有相关 Mutex
 
     pub fn get_default_app_path() -> PathBuf {
         let possible_paths = vec![
