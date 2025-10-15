@@ -118,8 +118,20 @@ pub mod platform {
     fn close_mutex(name: &str) -> std::result::Result<(), String> {
         unsafe {
             let h_current = GetCurrentProcess();
-            let mut buf = vec![0u8; 64 * 1024];
-            let mut ret_len = 0;
+            // 先查询需要的缓冲区大小
+            let mut ret_len = 0u32;
+
+            // 第一次调用获取所需大小
+            let _ = NtQuerySystemInformation(
+                SystemExtendedHandleInformation,
+                std::ptr::null_mut(),
+                0,
+                &mut ret_len,
+            );
+
+            // 分配足够大的缓冲区 (增加 50% 余量)
+            let buf_size = ((ret_len as usize) * 3) / 2;
+            let mut buf = vec![0u8; buf_size];
 
             let status = NtQuerySystemInformation(
                 SystemExtendedHandleInformation,
@@ -129,7 +141,8 @@ pub mod platform {
             );
 
             if status != 0 {
-                return Err(format!("查询系统信息失败: status=0x{:X}", status));
+                return Err(format!("查询系统信息失败: status=0x{:X} (需要 {} 字节,分配了 {} 字节)",
+                    status, ret_len, buf_size));
             }
 
             let info = &*(buf.as_ptr() as *const SYSTEM_HANDLE_INFORMATION_EX);
