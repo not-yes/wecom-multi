@@ -15,6 +15,25 @@
 - [ ] 注册表方式数据目录隔离
 - [ ] 持久化缓存到配置文件
 
+## [0.5.4] - 2025-01-15
+
+### 修复 🐛
+- **Windows API特性**: 添加缺失的 `Win32_System_Registry`、`Win32_Storage`、`Win32_Storage_FileSystem` 特性
+- **AppType traits**: 为 HashMap 支持添加 `Eq` 和 `Hash` derive 宏
+- **Cargo.toml**: 移除重复的 `license` 字段
+
+### 新增 ✨
+- **交叉编译检查**: 新增 `check-windows.sh` 脚本,在 macOS 上快速验证 Windows 编译
+- 自动安装 `x86_64-pc-windows-msvc` 目标
+- 10秒内完成编译检查 (vs GitHub Actions 15分钟)
+
+### 改进 🚀
+- **开发效率**: 推送前本地验证,避免 CI 构建失败
+- **文档更新**: CLAUDE.md 添加完整交叉编译指南
+
+### 说明
+此版本修复了v0.5.3在GitHub Actions中的构建失败问题,并提供了本地快速验证工具。
+
 ## [0.5.3] - 2025-01-15
 
 ### 修复 🐛
