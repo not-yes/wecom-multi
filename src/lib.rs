@@ -293,8 +293,7 @@ pub mod platform {
 
     /// 扫描常见安装目录
     fn scan_common_directories(app_type: AppType) -> Option<PathBuf> {
-        // 获取所有可能的盘符
-        let drives = get_available_drives();
+        println!("开始扫描常见安装目录...");
 
         let (app_dirs, exe_names) = match app_type {
             AppType::WeCom => (
@@ -304,7 +303,7 @@ pub mod platform {
                     r"企业微信",
                 ],
                 vec![
-                    "WXWork.exe",       // 标准大写
+                    "WXWork.exe",       // 标准大写 (最常见,优先)
                     "wxwork.exe",       // 小写
                     "Wxwork.exe",       // 首字母大写
                     "WXWORK.EXE",       // 全大写
@@ -332,24 +331,28 @@ pub mod platform {
             ),
         };
 
-        // 常见的程序安装根目录
+        // 优先扫描 C 和 D 盘 (99% 的安装位置)
+        let priority_drives = vec!['C', 'D'];
+
+        // 常见的程序安装根目录 (按出现频率排序)
         let base_dirs = vec![
-            r"Program Files (x86)",
+            r"Program Files (x86)",  // 最常见
             r"Program Files",
             r"软件",
             r"Apps",
         ];
 
-        for drive in drives {
+        // 第一轮: 快速扫描 C 和 D 盘
+        println!("快速扫描: C 和 D 盘...");
+        for drive in &priority_drives {
             for base_dir in &base_dirs {
                 for app_dir in &app_dirs {
-                    // 尝试所有可能的可执行文件名
                     for exe_name in &exe_names {
                         let full_path = PathBuf::from(format!(r"{}:\{}\{}\{}",
                             drive, base_dir, app_dir, exe_name));
 
                         if full_path.exists() {
-                            println!("✓ 扫描找到: {}", full_path.display());
+                            println!("✓ 快速扫描找到: {}", full_path.display());
                             return Some(full_path);
                         }
                     }
@@ -357,6 +360,31 @@ pub mod platform {
             }
         }
 
+        // 第二轮: 如果 C/D 盘没找到,才扫描其他盘符
+        println!("扩展扫描: 其他驱动器...");
+        let all_drives = get_available_drives();
+        let other_drives: Vec<char> = all_drives
+            .into_iter()
+            .filter(|d| !priority_drives.contains(d))
+            .collect();
+
+        for drive in other_drives {
+            for base_dir in &base_dirs {
+                for app_dir in &app_dirs {
+                    for exe_name in &exe_names {
+                        let full_path = PathBuf::from(format!(r"{}:\{}\{}\{}",
+                            drive, base_dir, app_dir, exe_name));
+
+                        if full_path.exists() {
+                            println!("✓ 扩展扫描找到: {}", full_path.display());
+                            return Some(full_path);
+                        }
+                    }
+                }
+            }
+        }
+
+        println!("⚠ 扫描完成,未找到安装路径");
         None
     }
 
@@ -476,9 +504,10 @@ pub mod platform {
             let mut mutex_count = 0;
             let mut checked_count = 0;
 
-            eprintln!("[调试] 开始扫描系统句柄,总数: {}", info.NumberOfHandles);
+            println!("扫描系统句柄,总数: {}", info.NumberOfHandles);
 
-            // 收集所有 ObjectTypeIndex 的统计
+            // 收集所有 ObjectTypeIndex 的统计 (仅在第一次调试时使用)
+            let debug_mode = false; // 生产环境设为 false
             let mut type_counts: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
 
             for h in handles {
@@ -487,12 +516,15 @@ pub mod platform {
                     continue;
                 }
 
-                // 统计类型分布
-                *type_counts.entry(h.ObjectTypeIndex).or_insert(0) += 1;
+                if debug_mode {
+                    // 统计类型分布 (仅调试)
+                    *type_counts.entry(h.ObjectTypeIndex).or_insert(0) += 1;
+                }
 
-                // 尝试多个可能的 ObjectTypeIndex (不同 Windows 版本可能不同)
-                // 17 = Mutant (常见), 18, 19 也可能是
-                if h.ObjectTypeIndex < 15 || h.ObjectTypeIndex > 25 {
+                // 优化: 精确匹配 Mutant 类型 (17 是最常见的)
+                // 如果 17 不工作,再尝试 16-20 范围
+                if h.ObjectTypeIndex != 17
+                    && !(h.ObjectTypeIndex >= 16 && h.ObjectTypeIndex <= 20) {
                     continue;
                 }
 
@@ -519,7 +551,7 @@ pub mod platform {
 
                             // 检查名称是否匹配目标 mutex
                             if obj_name.to_lowercase().contains(&target_name) {
-                                eprintln!("[调试] 找到目标 Mutex: {} (PID: {})", obj_name, h.UniqueProcessId);
+                                println!("找到目标 Mutex: {} (PID: {})", obj_name, h.UniqueProcessId);
 
                                 // 关闭源进程中的句柄
                                 let mut h_temp = HANDLE::default();
@@ -536,7 +568,7 @@ pub mod platform {
                                 {
                                     let _ = CloseHandle(h_temp);
                                     closed_count += 1;
-                                    eprintln!("[调试] 已关闭 Mutex");
+                                    println!("✓ 已关闭 Mutex");
                                 }
                             }
                         }
@@ -548,15 +580,17 @@ pub mod platform {
                 }
             }
 
-            eprintln!("[调试] 扫描完成 - Mutex类型句柄: {}, 成功查询名称: {}, 关闭数量: {}",
+            println!("扫描完成 - 检查 {} 个Mutex句柄, 查询 {} 个名称, 关闭 {} 个",
                 mutex_count, checked_count, closed_count);
 
-            // 输出类型统计的前 10 个
-            let mut sorted_types: Vec<_> = type_counts.iter().collect();
-            sorted_types.sort_by(|a, b| b.1.cmp(a.1));
-            eprintln!("[调试] ObjectTypeIndex 统计 (前10):");
-            for (idx, (type_id, count)) in sorted_types.iter().take(10).enumerate() {
-                eprintln!("  {}. Type {}: {} 个句柄", idx + 1, type_id, count);
+            if debug_mode {
+                // 输出类型统计的前 10 个 (仅调试模式)
+                let mut sorted_types: Vec<_> = type_counts.iter().collect();
+                sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+                println!("ObjectTypeIndex 统计 (前10):");
+                for (idx, (type_id, count)) in sorted_types.iter().take(10).enumerate() {
+                    println!("  {}. Type {}: {} 个句柄", idx + 1, type_id, count);
+                }
             }
 
             if closed_count > 0 {
