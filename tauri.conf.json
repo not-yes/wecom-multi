@@ -25,19 +25,13 @@
   "app": {
     "withGlobalTauri": false,
     "macOSPrivateApi": false,
-    "windows": {
-      "create": {
-        "consoleLogLevel": "info"
-      }
-    },
     "trayIcon": {
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
       "menuOnLeftClick": false
     },
     "security": {
-      "csp": null,
-      "devTools": true
+      "csp": null
     },
     "windows": [
       {
