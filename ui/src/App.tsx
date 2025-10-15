@@ -4,6 +4,7 @@ import { Play, Square, RefreshCw, Trash2, Plus, Minus } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from './components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
 import { useTheme } from './hooks/useTheme'
 import './styles/globals.css'
 
@@ -131,7 +132,7 @@ function App() {
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
             {/* 控制面板 */}
-            <Card className="mb-6 glass-effect border-border/50">
+            <Card className="mb-6 glass-effect">
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl font-semibold">微信多开工具</CardTitle>
                 <CardDescription className="text-xs">
@@ -139,29 +140,19 @@ function App() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* 应用类型选择 */}
+                {/* 应用类型选择 - 使用 Tabs */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground">应用类型</label>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={appType === 'wecom' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setAppType('wecom')}
-                      disabled={loading}
-                      className="flex-1 transition-all duration-200"
-                    >
-                      企业微信
-                    </Button>
-                    <Button
-                      variant={appType === 'wechat' ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setAppType('wechat')}
-                      disabled={loading}
-                      className="flex-1 transition-all duration-200"
-                    >
-                      个人微信
-                    </Button>
-                  </div>
+                  <Tabs value={appType} onValueChange={(value) => setAppType(value as 'wecom' | 'wechat')}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="wecom" disabled={loading}>
+                        企业微信
+                      </TabsTrigger>
+                      <TabsTrigger value="wechat" disabled={loading}>
+                        个人微信
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </div>
 
                 {/* 隔离模式选择 (仅Windows) */}
@@ -292,7 +283,7 @@ function App() {
             </Card>
 
             {/* 运行中的实例 */}
-            <Card className="glass-effect border-border/50">
+            <Card className="glass-effect">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base font-medium flex items-center justify-between">
                   <span>运行中的实例</span>
