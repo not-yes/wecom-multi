@@ -104,7 +104,7 @@ pub mod platform {
         })
     }
 
-    fn close_mutex(_name: &str) -> std::result::Result<(), String> {
+    fn close_mutex(name: &str) -> std::result::Result<(), String> {
         unsafe {
             let h_current = GetCurrentProcess();
             let mut buf = vec![0u8; 64 * 1024];
@@ -118,20 +118,31 @@ pub mod platform {
             );
 
             if status != 0 {
-                return Err("查询系统信息失败".to_string());
+                return Err(format!("查询系统信息失败: status={}", status));
             }
 
             let info = &*(buf.as_ptr() as *const SYSTEM_HANDLE_INFORMATION_EX);
             let handles = slice::from_raw_parts(info.Handles.as_ptr(), info.NumberOfHandles as usize);
 
+            let target_name = name.to_lowercase();
+            let mut closed_count = 0;
+
             for h in handles {
+                // 跳过当前进程的句柄
                 if h.UniqueProcessId == GetCurrentProcessId() {
+                    continue;
+                }
+
+                // ObjectTypeIndex 17 通常表示 Mutant (Mutex) 对象
+                // 只处理 Mutex 类型的句柄
+                if h.ObjectTypeIndex != 17 {
                     continue;
                 }
 
                 if let Ok(h_process) = OpenProcess(PROCESS_DUP_HANDLE, false, h.UniqueProcessId) {
                     let mut h_dup = HANDLE::default();
 
+                    // 复制句柄到当前进程
                     if DuplicateHandle(
                         h_process,
                         HANDLE(h.HandleValue as _),
@@ -139,18 +150,78 @@ pub mod platform {
                         &mut h_dup,
                         0,
                         false,
-                        DUPLICATE_CLOSE_SOURCE,
+                        DUPLICATE_HANDLE_OPTIONS(0),
                     )
                     .is_ok()
                     {
+                        // 查询对象名称
+                        if let Some(obj_name) = query_object_name(h_dup) {
+                            // 检查名称是否匹配目标 mutex
+                            if obj_name.to_lowercase().contains(&target_name) {
+                                // 关闭源进程中的句柄
+                                let mut h_temp = HANDLE::default();
+                                if DuplicateHandle(
+                                    h_process,
+                                    HANDLE(h.HandleValue as _),
+                                    h_current,
+                                    &mut h_temp,
+                                    0,
+                                    false,
+                                    DUPLICATE_CLOSE_SOURCE,
+                                )
+                                .is_ok()
+                                {
+                                    let _ = CloseHandle(h_temp);
+                                    closed_count += 1;
+                                }
+                            }
+                        }
+
                         let _ = CloseHandle(h_dup);
                     }
 
                     let _ = CloseHandle(h_process);
                 }
             }
+
+            if closed_count > 0 {
+                Ok(())
+            } else {
+                Err(format!("未找到名为 '{}' 的 Mutex 对象", name))
+            }
         }
-        Ok(())
+    }
+
+    // 查询对象名称
+    fn query_object_name(handle: HANDLE) -> Option<String> {
+        unsafe {
+            let mut buffer = vec![0u8; 4096];
+            let mut ret_len = 0u32;
+
+            let status = NtQueryObject(
+                handle,
+                ObjectNameInformation,
+                buffer.as_mut_ptr() as _,
+                buffer.len() as u32,
+                &mut ret_len,
+            );
+
+            if status != 0 {
+                return None;
+            }
+
+            let name_info = &*(buffer.as_ptr() as *const UNICODE_STRING);
+            if name_info.Length == 0 || name_info.Buffer.is_null() {
+                return None;
+            }
+
+            let name_slice = slice::from_raw_parts(
+                name_info.Buffer.as_ptr(),
+                (name_info.Length / 2) as usize,
+            );
+
+            String::from_utf16(name_slice).ok()
+        }
     }
 
     fn launch_process(exe: &PathBuf) -> std::result::Result<u32, String> {
@@ -229,7 +300,15 @@ pub mod platform {
         Reserved: u32,
     }
 
+    #[repr(C)]
+    struct UNICODE_STRING {
+        Length: u16,
+        MaximumLength: u16,
+        Buffer: PWSTR,
+    }
+
     const SystemExtendedHandleInformation: i32 = 64;
+    const ObjectNameInformation: i32 = 1;
 
     #[link(name = "ntdll")]
     extern "system" {
@@ -237,6 +316,14 @@ pub mod platform {
             SystemInformationClass: i32,
             SystemInformation: *mut std::ffi::c_void,
             SystemInformationLength: u32,
+            ReturnLength: *mut u32,
+        ) -> i32;
+
+        fn NtQueryObject(
+            Handle: HANDLE,
+            ObjectInformationClass: i32,
+            ObjectInformation: *mut std::ffi::c_void,
+            ObjectInformationLength: u32,
             ReturnLength: *mut u32,
         ) -> i32;
     }
