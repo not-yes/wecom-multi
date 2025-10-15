@@ -1,4 +1,8 @@
 // GUI 版本 - Tauri 图形界面
+
+// Prevents additional console window on Windows in release mode
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, WindowEvent};

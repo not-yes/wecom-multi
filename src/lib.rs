@@ -223,6 +223,7 @@ pub mod platform {
         // 支持多种进程名称 (不同版本/语言可能不同)
         let process_names = match app_type {
             AppType::WeCom => vec![
+                "WXWork.exe",           // 老版本企业微信
                 "wxwork.exe",           // 中文版
                 "wecom.exe",            // 英文版
                 "wework.exe",           // 可能的别名
@@ -653,6 +654,7 @@ pub mod platform {
         // 支持多种进程名称 (不同版本/语言)
         let process_names = match app_type {
             AppType::WeCom => vec![
+                "WXWork.exe",           // 老版本企业微信
                 "wxwork.exe",           // 中文版
                 "wecom.exe",            // 英文版
                 "wework.exe",           // 可能的别名
