@@ -5,10 +5,21 @@ use tauri::{Manager, WindowEvent};
 use wecom_multi_open::{platform, SpawnRequest};
 
 /// 应用状态
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct AppState {
     /// 当前运行的实例 PID 列表
     pids: Arc<Mutex<Vec<u32>>>,
+    /// 退出时是否保留实例 (true = 保留,false = 关闭)
+    keep_on_exit: Arc<Mutex<bool>>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            pids: Arc::new(Mutex::new(Vec::new())),
+            keep_on_exit: Arc::new(Mutex::new(true)), // 默认保留实例
+        }
+    }
 }
 
 
@@ -28,6 +39,24 @@ async fn spawn_instances(
 ) -> Result<GuiResponse, String> {
     println!("收到启动请求: {} 个实例", count);
 
+    // 检测已存在的企业微信进程
+    #[cfg(target_os = "windows")]
+    let existing_pids = platform::find_wecom_processes();
+    #[cfg(not(target_os = "windows"))]
+    let existing_pids = Vec::new();
+
+    if !existing_pids.is_empty() {
+        println!("⚠ 检测到 {} 个已运行的企业微信实例: {:?}", existing_pids.len(), existing_pids);
+
+        // 将已存在的进程添加到管理列表
+        let mut pids = state.pids.lock().unwrap();
+        for &pid in &existing_pids {
+            if !pids.contains(&pid) {
+                pids.push(pid);
+            }
+        }
+    }
+
     let req = SpawnRequest {
         count,
         app_path: None,
@@ -35,14 +64,16 @@ async fn spawn_instances(
 
     match platform::spawn_multiple(req).await {
         Ok(response) => {
-            // 保存 PID 到状态
+            // 保存新启动的 PID 到状态
             let mut pids = state.pids.lock().unwrap();
             pids.extend_from_slice(&response.pids);
 
+            let total_instances = pids.len();
+
             Ok(GuiResponse {
                 success: true,
-                message: format!("成功启动 {} 个实例!", response.success),
-                pids: response.pids,
+                message: format!("成功启动 {} 个新实例! 当前共 {} 个实例运行", response.success, total_instances),
+                pids: pids.clone(),
             })
         }
         Err(e) => Ok(GuiResponse {
@@ -141,8 +172,38 @@ async fn get_running_instances(
     })
 }
 
+/// Tauri 命令: 设置退出时是否保留实例
+#[tauri::command]
+async fn set_keep_on_exit(
+    keep: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<GuiResponse, String> {
+    *state.keep_on_exit.lock().unwrap() = keep;
+
+    Ok(GuiResponse {
+        success: true,
+        message: format!("已设置: 退出时{}", if keep { "保留实例" } else { "关闭所有实例" }),
+        pids: vec![],
+    })
+}
+
+/// Tauri 命令: 获取退出设置
+#[tauri::command]
+async fn get_keep_on_exit(
+    state: tauri::State<'_, AppState>,
+) -> Result<bool, String> {
+    Ok(*state.keep_on_exit.lock().unwrap())
+}
+
 /// 清理所有子进程
 fn cleanup_all_processes(state: &AppState) {
+    let keep_on_exit = *state.keep_on_exit.lock().unwrap();
+
+    if keep_on_exit {
+        println!("应用退出,保留所有企业微信实例运行");
+        return;
+    }
+
     let pids = state.pids.lock().unwrap();
     let count = pids.len();
 
@@ -212,6 +273,8 @@ fn main() {
             kill_instance,
             kill_all_instances,
             get_running_instances,
+            set_keep_on_exit,
+            get_keep_on_exit,
         ])
         .build(tauri::generate_context!())
         .expect("启动 Tauri 应用失败")

@@ -319,6 +319,62 @@ pub mod platform {
         }
     }
 
+    /// 查找所有正在运行的企业微信进程
+    pub fn find_wecom_processes() -> Vec<u32> {
+        use windows::Win32::System::ProcessStatus::*;
+        use windows::Win32::System::SystemServices::*;
+
+        let mut pids = Vec::new();
+
+        unsafe {
+            // 枚举所有进程
+            let mut process_ids = vec![0u32; 2048];
+            let mut bytes_returned = 0u32;
+
+            if EnumProcesses(
+                process_ids.as_mut_ptr(),
+                (process_ids.len() * std::mem::size_of::<u32>()) as u32,
+                &mut bytes_returned,
+            )
+            .is_ok()
+            {
+                let count = bytes_returned as usize / std::mem::size_of::<u32>();
+
+                for &pid in &process_ids[..count] {
+                    if pid == 0 {
+                        continue;
+                    }
+
+                    // 打开进程获取更多信息
+                    if let Ok(h_process) = OpenProcess(
+                        PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                        false,
+                        pid,
+                    ) {
+                        // 获取进程可执行文件路径
+                        let mut exe_path = vec![0u16; 260];
+                        let mut size = exe_path.len() as u32;
+
+                        if QueryFullProcessImageNameW(h_process, PROCESS_NAME_WIN32, &mut exe_path, &mut size)
+                            .is_ok()
+                        {
+                            let path = String::from_utf16_lossy(&exe_path[..size as usize]);
+
+                            // 检查是否是企业微信进程
+                            if path.to_lowercase().contains("wxwork.exe") {
+                                pids.push(pid);
+                            }
+                        }
+
+                        let _ = CloseHandle(h_process);
+                    }
+                }
+            }
+        }
+
+        pids
+    }
+
     #[repr(C)]
     struct SYSTEM_HANDLE_INFORMATION_EX {
         NumberOfHandles: usize,
