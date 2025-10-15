@@ -87,6 +87,27 @@
   }
 }
 
+@layer components {
+  /* 扁平化设计 - 移除非 outline 组件的边框和阴影 */
+
+  /* Card 组件 - 移除边框和阴影 */
+  [class*="rounded-"][class*="border"][class*="bg-card"][class*="shadow"] {
+    @apply border-0 shadow-none;
+  }
+
+  /* Button 组件 - 移除 default/destructive/secondary 的阴影 */
+  button[class*="bg-primary"][class*="shadow"],
+  button[class*="bg-destructive"][class*="shadow"],
+  button[class*="bg-secondary"][class*="shadow"] {
+    @apply shadow-none;
+  }
+
+  /* 保持 outline button 的边框 */
+  button[class*="border"][class*="border-input"] {
+    @apply border shadow-none;
+  }
+}
+
 @layer utilities {
   /* Apple 风格动画 */
   .animate-in {
