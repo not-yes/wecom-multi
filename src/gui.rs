@@ -359,7 +359,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(AppState::default())
         .setup(|app| {
-            let window = app.get_webview_window("main").unwrap();
+            let _window = app.get_webview_window("main").unwrap();
 
             // 应用原生窗口效果
             // 注意: 在非透明窗口下,vibrancy 效果可能不会生效

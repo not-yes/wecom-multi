@@ -16,6 +16,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let req = SpawnRequest {
         count,
         app_path: None,
+        app_type: None,           // 默认企业微信
+        instance_configs: None,   // CLI不使用实例配置
     };
 
     match platform::spawn_multiple(req).await {
