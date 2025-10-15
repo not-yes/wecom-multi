@@ -255,3 +255,210 @@ docs/
 ```
 
 **Rule**: Never create more than 3-4 documentation files. Keep each file under 300 lines. Update existing docs instead of creating new ones.
+
+## UI/Frontend Development
+
+### Tech Stack
+- **Framework**: React 18 + TypeScript + Vite
+- **UI Components**: Shadcn/ui (copy-paste components)
+- **Styling**: Tailwind CSS
+- **Desktop**: Tauri 2.x
+- **Icons**: Lucide React
+- **Animation**: Framer Motion
+
+### Project Structure
+```
+ui/
+├── src/
+│   ├── components/ui/     # Shadcn components (keep original)
+│   ├── styles/
+│   │   └── globals.css    # Global styles and overrides
+│   ├── hooks/             # Custom React hooks
+│   ├── lib/               # Utilities
+│   └── App.tsx            # Main application
+├── package.json
+└── vite.config.ts
+```
+
+### Styling Guidelines
+
+**IMPORTANT**: Use global styles for design system modifications, NOT direct component edits.
+
+#### Design Philosophy
+- **Flat Design**: Large border radius (16px), minimal shadows
+- **Clean Interface**: Remove borders/shadows from non-outline components
+- **Consistency**: Centralized design tokens in CSS variables
+
+#### CSS Architecture
+
+```css
+/* ui/src/styles/globals.css */
+
+:root {
+  /* Design Tokens - Modify these for global changes */
+  --radius: 16px;           /* Border radius */
+  --font-sans: ...;         /* Typography */
+  /* Color tokens... */
+}
+
+@layer components {
+  /* Component-level style overrides */
+  /* Use this for removing borders, shadows, etc. */
+}
+
+@layer utilities {
+  /* Custom utility classes */
+}
+```
+
+#### Styling Best Practices
+
+**✅ DO:**
+1. **Modify design tokens in `:root`** for global changes:
+   ```css
+   :root {
+     --radius: 16px;  /* Affects all components */
+   }
+   ```
+
+2. **Override component styles in `@layer components`**:
+   ```css
+   @layer components {
+     /* Remove Card borders and shadows */
+     [class*="rounded-"][class*="border"][class*="bg-card"] {
+       @apply border-0 shadow-none;
+     }
+
+     /* Remove Button shadows (except outline) */
+     button[class*="bg-primary"][class*="shadow"] {
+       @apply shadow-none;
+     }
+   }
+   ```
+
+3. **Keep shadcn components in original state**:
+   - Components in `ui/src/components/ui/` should NOT be modified
+   - This allows easy upgrades and maintains consistency
+   - All customizations go in `globals.css`
+
+**❌ DON'T:**
+1. ❌ Directly edit component files (`button.tsx`, `card.tsx`, etc.)
+2. ❌ Add inline styles in component props
+3. ❌ Create duplicate components for minor style changes
+4. ❌ Use `!important` to override styles
+
+#### Why Global Styles Over Component Edits?
+
+**Advantages of Global Approach:**
+- ✅ **Centralized Design System**: All visual styles in one place
+- ✅ **Easy Upgrades**: Shadcn components stay pristine, can be updated easily
+- ✅ **Maintainability**: Single source of truth for design decisions
+- ✅ **Git Cleanliness**: Fewer component file modifications in version control
+- ✅ **Tailwind Layers**: Proper use of `@layer` system for predictable specificity
+
+**Problems with Direct Component Edits:**
+- ❌ Styles scattered across multiple files
+- ❌ Difficult to upgrade shadcn components
+- ❌ Hard to track what's been customized
+- ❌ Need higher specificity to override later
+
+#### Example: Flat Design Implementation
+
+```css
+/* globals.css - Centralized flat design */
+
+:root {
+  --radius: 16px;  /* Larger, flatter corners */
+}
+
+@layer components {
+  /* Card: Remove border and shadow for flat look */
+  [class*="rounded-"][class*="border"][class*="bg-card"][class*="shadow"] {
+    @apply border-0 shadow-none;
+  }
+
+  /* Buttons: Remove shadows (keep outline border) */
+  button[class*="bg-primary"][class*="shadow"],
+  button[class*="bg-destructive"][class*="shadow"],
+  button[class*="bg-secondary"][class*="shadow"] {
+    @apply shadow-none;
+  }
+
+  /* Outline buttons: Keep border, remove shadow */
+  button[class*="border"][class*="border-input"] {
+    @apply border shadow-none;
+  }
+}
+```
+
+#### Component Usage Patterns
+
+**Tabs for Navigation:**
+```tsx
+import { Tabs, TabsList, TabsTrigger } from './components/ui/tabs'
+
+<Tabs value={current} onValueChange={setCurrent}>
+  <TabsList className="grid w-full grid-cols-2">
+    <TabsTrigger value="option1">Option 1</TabsTrigger>
+    <TabsTrigger value="option2">Option 2</TabsTrigger>
+  </TabsList>
+</Tabs>
+```
+
+**Platform-Specific Styling:**
+```tsx
+// Detect platform in component
+const [platform, setPlatform] = useState<'windows' | 'macos' | 'other'>('other')
+
+useEffect(() => {
+  const platformStr = navigator.platform.toLowerCase()
+  if (platformStr.includes('mac')) {
+    document.documentElement.classList.add('platform-macos')
+    setPlatform('macos')
+  } else if (platformStr.includes('win')) {
+    document.documentElement.classList.add('platform-windows')
+    setPlatform('windows')
+  }
+}, [])
+
+// Conditional rendering
+{platform === 'windows' && <WindowsOnlyFeature />}
+{platform === 'macos' && <MacOnlyFeature />}
+```
+
+**Glass Effect (macOS/Windows):**
+```tsx
+<Card className="glass-effect">
+  {/* Automatic platform-specific backdrop-filter */}
+</Card>
+```
+
+### Build Process
+
+**Development:**
+```bash
+cd ui
+npm run dev       # Vite dev server
+npm run build     # Production build
+```
+
+**Full App Build:**
+```bash
+# From project root
+cargo tauri dev   # Development mode with hot reload
+cargo tauri build # Production build (platform-specific installer)
+```
+
+### Dependencies
+
+**When adding UI components:**
+```bash
+cd ui
+npm install @radix-ui/react-[component]  # Radix primitives for shadcn
+```
+
+**Current shadcn components:**
+- Button
+- Card
+- Tabs
+- (Add more as needed via copy-paste from shadcn/ui docs)
