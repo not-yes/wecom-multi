@@ -18,19 +18,42 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [runningPids, setRunningPids] = useState<number[]>([])
+  const [appType, setAppType] = useState<'wecom' | 'wechat'>('wecom')
+  const [isolationMode, setIsolationMode] = useState<'simple' | 'sandboxie'>('simple')
+  const [sandboxieAvailable, setSandboxieAvailable] = useState(false)
+  const [platform, setPlatform] = useState<'windows' | 'macos' | 'other'>('other')
 
   // 自动切换暗黑模式
   useTheme()
 
   // 检测平台并添加对应的 class
   useEffect(() => {
-    const platform = navigator.platform.toLowerCase()
-    if (platform.includes('mac')) {
+    const platformStr = navigator.platform.toLowerCase()
+    if (platformStr.includes('mac')) {
       document.documentElement.classList.add('platform-macos')
-    } else if (platform.includes('win')) {
+      setPlatform('macos')
+    } else if (platformStr.includes('win')) {
       document.documentElement.classList.add('platform-windows')
+      setPlatform('windows')
+      // Windows平台检测Sandboxie
+      checkSandboxie()
+    } else {
+      setPlatform('other')
     }
   }, [])
+
+  async function checkSandboxie() {
+    try {
+      const available = await invoke<boolean>('check_sandboxie_available')
+      setSandboxieAvailable(available)
+      if (!available) {
+        console.log('Sandboxie-Plus 未安装或不可用')
+      }
+    } catch (error) {
+      console.error('检测Sandboxie失败:', error)
+      setSandboxieAvailable(false)
+    }
+  }
 
   // 自动刷新运行的实例
   useEffect(() => {
@@ -55,6 +78,8 @@ function App() {
     try {
       const response = await invoke<GuiResponse>('spawn_instances', {
         count: instanceCount,
+        appType: appType,
+        isolationMode: isolationMode,
       })
 
       setMessage(response.message)
@@ -108,12 +133,88 @@ function App() {
             {/* 控制面板 */}
             <Card className="mb-6 glass-effect border-border/50">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-semibold">企业微信多开工具</CardTitle>
+                <CardTitle className="text-xl font-semibold">微信多开工具</CardTitle>
                 <CardDescription className="text-xs">
-                  同时运行多个企业微信实例
+                  同时运行多个微信/企业微信实例
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* 应用类型选择 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground">应用类型</label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={appType === 'wecom' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAppType('wecom')}
+                      disabled={loading}
+                      className="flex-1 transition-all duration-200"
+                    >
+                      企业微信
+                    </Button>
+                    <Button
+                      variant={appType === 'wechat' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setAppType('wechat')}
+                      disabled={loading}
+                      className="flex-1 transition-all duration-200"
+                    >
+                      个人微信
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 隔离模式选择 (仅Windows) */}
+                {platform === 'windows' && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      隔离模式
+                      {!sandboxieAvailable && isolationMode === 'sandboxie' && (
+                        <span className="ml-2 text-[10px] text-orange-500">
+                          ⚠️ 需要安装Sandboxie-Plus
+                        </span>
+                      )}
+                    </label>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={isolationMode === 'simple' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setIsolationMode('simple')}
+                        disabled={loading}
+                        className="flex-1 transition-all duration-200"
+                      >
+                        <div className="text-left">
+                          <div className="text-xs">简单模式</div>
+                          <div className="text-[9px] opacity-70">共享数据</div>
+                        </div>
+                      </Button>
+                      <Button
+                        variant={isolationMode === 'sandboxie' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setIsolationMode('sandboxie')}
+                        disabled={loading}
+                        className="flex-1 transition-all duration-200"
+                      >
+                        <div className="text-left">
+                          <div className="text-xs">沙盒隔离</div>
+                          <div className="text-[9px] opacity-70">
+                            {sandboxieAvailable ? '✓ 已安装' : '未安装'}
+                          </div>
+                        </div>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* macOS 提示 */}
+                {platform === 'macos' && (
+                  <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-3 py-2">
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                      ✨ macOS 自动启用完全数据隔离
+                    </p>
+                  </div>
+                )}
+
                 {/* 操作区域 */}
                 <div className="flex items-center gap-3">
                   {/* 数量控制 */}
@@ -244,7 +345,7 @@ function App() {
 
             {/* 底部提示 */}
             <div className="mt-4 text-center text-[10px] text-muted-foreground">
-              <p>v0.3.2 · 支持 Windows 和 macOS</p>
+              <p>v0.5.0 · 微信/企业微信 · Windows 沙盒隔离 · macOS 完全隔离</p>
             </div>
           </motion.div>
         </AnimatePresence>

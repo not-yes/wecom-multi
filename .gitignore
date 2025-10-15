@@ -9,6 +9,7 @@ src-tauri/target/
 dist/
 dist-ssr/
 *.local
+build-output/
 
 # Downloaded artifacts (from gh run download)
 wecom-multi-open-cli-*/

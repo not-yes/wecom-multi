@@ -4,6 +4,17 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, WindowEvent};
 use wecom_multi_open::{platform, SpawnRequest, AppType};
 
+#[cfg(target_os = "windows")]
+use wecom_multi_open::wecom_manager::{WeComManager, WeComInstance};
+
+/// 隔离模式
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum IsolationMode {
+    Simple,    // 简单模式 (无隔离)
+    Sandboxie, // Sandboxie沙盒模式 (Windows)
+}
+
 /// 应用状态
 #[derive(Clone)]
 struct AppState {
@@ -11,6 +22,9 @@ struct AppState {
     pids: Arc<Mutex<Vec<u32>>>,
     /// 退出时是否保留实例 (true = 保留,false = 关闭)
     keep_on_exit: Arc<Mutex<bool>>,
+    /// Sandboxie 实例列表 (仅Windows)
+    #[cfg(target_os = "windows")]
+    sandboxie_instances: Arc<Mutex<Vec<WeComInstance>>>,
 }
 
 impl Default for AppState {
@@ -18,6 +32,8 @@ impl Default for AppState {
         Self {
             pids: Arc::new(Mutex::new(Vec::new())),
             keep_on_exit: Arc::new(Mutex::new(true)), // 默认保留实例
+            #[cfg(target_os = "windows")]
+            sandboxie_instances: Arc::new(Mutex::new(Vec::new())),
         }
     }
 }
@@ -36,6 +52,7 @@ struct GuiResponse {
 async fn spawn_instances(
     count: u8,
     app_type: Option<String>,
+    isolation_mode: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<GuiResponse, String> {
     // 解析应用类型
@@ -49,8 +66,59 @@ async fn spawn_instances(
         AppType::WeChat => "微信",
     };
 
-    println!("收到启动请求: {} {} 个实例", app_name, count);
+    // 解析隔离模式
+    let isolation = match isolation_mode.as_deref() {
+        Some("sandboxie") => IsolationMode::Sandboxie,
+        _ => IsolationMode::Simple,
+    };
 
+    println!("收到启动请求: {} {} 个实例 (模式: {:?})", app_name, count, isolation);
+
+    // Windows + Sandboxie 模式
+    #[cfg(target_os = "windows")]
+    if matches!(isolation, IsolationMode::Sandboxie) {
+        match WeComManager::new() {
+            Ok(manager) => {
+                match manager.spawn_multiple(count) {
+                    Ok(instances) => {
+                        // 保存Sandboxie实例信息
+                        let mut sb_instances = state.sandboxie_instances.lock().unwrap();
+                        let mut pids = state.pids.lock().unwrap();
+
+                        for instance in &instances {
+                            if let Some(pid) = instance.pid {
+                                pids.push(pid);
+                            }
+                        }
+
+                        sb_instances.extend(instances.clone());
+
+                        return Ok(GuiResponse {
+                            success: true,
+                            message: format!("✅ Sandboxie模式: 成功启动 {} 个隔离实例!", instances.len()),
+                            pids: pids.clone(),
+                        });
+                    }
+                    Err(e) => {
+                        return Ok(GuiResponse {
+                            success: false,
+                            message: format!("Sandboxie启动失败: {}. 请检查是否已安装Sandboxie-Plus", e),
+                            pids: vec![],
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                return Ok(GuiResponse {
+                    success: false,
+                    message: format!("无法初始化Sandboxie: {}. 请先安装Sandboxie-Plus: https://github.com/sandboxie-plus/Sandboxie/releases", e),
+                    pids: vec![],
+                });
+            }
+        }
+    }
+
+    // 简单模式 (所有平台)
     // 检测已存在的进程
     #[cfg(target_os = "windows")]
     let existing_pids = platform::find_processes_by_type(app_type_enum.clone());
@@ -73,6 +141,7 @@ async fn spawn_instances(
         count,
         app_path: None,
         app_type: Some(app_type_enum),
+        instance_configs: None,
     };
 
     match platform::spawn_multiple(req).await {
@@ -83,9 +152,15 @@ async fn spawn_instances(
 
             let total_instances = pids.len();
 
+            let mode_desc = if matches!(isolation, IsolationMode::Sandboxie) {
+                "隔离模式"
+            } else {
+                "简单模式"
+            };
+
             Ok(GuiResponse {
                 success: true,
-                message: format!("成功启动 {} 个新实例! 当前共 {} 个实例运行", response.success, total_instances),
+                message: format!("✅ {}: 成功启动 {} 个新实例! 当前共 {} 个实例运行", mode_desc, response.success, total_instances),
                 pids: pids.clone(),
             })
         }
@@ -208,6 +283,22 @@ async fn get_keep_on_exit(
     Ok(*state.keep_on_exit.lock().unwrap())
 }
 
+/// Tauri 命令: 检测Sandboxie是否可用
+#[tauri::command]
+async fn check_sandboxie_available() -> Result<bool, String> {
+    #[cfg(target_os = "windows")]
+    {
+        match WeComManager::new() {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Ok(false)
+    }
+}
+
 /// 清理所有子进程
 fn cleanup_all_processes(state: &AppState) {
     let keep_on_exit = *state.keep_on_exit.lock().unwrap();
@@ -288,6 +379,7 @@ fn main() {
             get_running_instances,
             set_keep_on_exit,
             get_keep_on_exit,
+            check_sandboxie_available,
         ])
         .build(tauri::generate_context!())
         .expect("启动 Tauri 应用失败")

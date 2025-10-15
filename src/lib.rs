@@ -24,10 +24,17 @@ impl Default for AppType {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct InstanceConfig {
+    pub data_dir: Option<PathBuf>,  // 数据目录
+    pub proxy: Option<String>,       // 代理配置 (如 "http://127.0.0.1:7890")
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SpawnRequest {
     pub count: u8,
     pub app_path: Option<PathBuf>,
     pub app_type: Option<AppType>,
+    pub instance_configs: Option<Vec<InstanceConfig>>,  // 每个实例的配置
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -51,6 +58,8 @@ pub mod platform {
     use windows::{
         core::*, Win32::Foundation::*,
         Win32::System::Threading::*,
+        Win32::System::Registry::*,
+        Win32::Storage::FileSystem::*,
     };
 
     const WECOM_MUTEX_NAME: &str = "Tencent.WeWork.Exclusive"; // 企业微信 Mutex
@@ -61,44 +70,239 @@ pub mod platform {
     }
 
     pub fn get_default_app_path_by_type(app_type: AppType) -> PathBuf {
-        match app_type {
-            AppType::WeCom => {
-                let possible_paths = vec![
-                    r"C:\Program Files (x86)\WXWork\WXWork.exe",
-                    r"C:\Program Files\WXWork\WXWork.exe",
-                    r"D:\Program Files (x86)\WXWork\WXWork.exe",
-                    r"D:\Program Files\WXWork\WXWork.exe",
-                ];
-
-                for path in possible_paths {
-                    let p = PathBuf::from(path);
-                    if p.exists() {
-                        return p;
-                    }
-                }
-
-                PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe")
-            }
-            AppType::WeChat => {
-                let possible_paths = vec![
-                    r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe",
-                    r"C:\Program Files\Tencent\WeChat\WeChat.exe",
-                    r"D:\Program Files (x86)\Tencent\WeChat\WeChat.exe",
-                    r"D:\Program Files\Tencent\WeChat\WeChat.exe",
-                    r"C:\Program Files (x86)\WeChat\WeChat.exe",
-                    r"C:\Program Files\WeChat\WeChat.exe",
-                ];
-
-                for path in possible_paths {
-                    let p = PathBuf::from(path);
-                    if p.exists() {
-                        return p;
-                    }
-                }
-
-                PathBuf::from(r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe")
+        // 优先级1: 从注册表读取安装路径
+        if let Some(path) = get_path_from_registry(app_type.clone()) {
+            if path.exists() {
+                println!("✓ 从注册表找到路径: {}", path.display());
+                return path;
             }
         }
+
+        // 优先级2: 从正在运行的进程获取路径
+        if let Some(path) = get_path_from_running_process(app_type.clone()) {
+            if path.exists() {
+                println!("✓ 从运行进程找到路径: {}", path.display());
+                return path;
+            }
+        }
+
+        // 优先级3: 扫描常见安装目录
+        if let Some(path) = scan_common_directories(app_type.clone()) {
+            println!("✓ 从常见目录找到路径: {}", path.display());
+            return path;
+        }
+
+        // 优先级4: 返回默认路径
+        match app_type {
+            AppType::WeCom => PathBuf::from(r"C:\Program Files (x86)\WXWork\WXWork.exe"),
+            AppType::WeChat => PathBuf::from(r"C:\Program Files (x86)\Tencent\WeChat\WeChat.exe"),
+        }
+    }
+
+    /// 从注册表读取应用安装路径
+    fn get_path_from_registry(app_type: AppType) -> Option<PathBuf> {
+        use windows::Win32::System::Registry::*;
+
+        unsafe {
+            let (root_key, subkey, value_name) = match app_type {
+                AppType::WeCom => (
+                    HKEY_CURRENT_USER,
+                    r"Software\Tencent\WXWork",
+                    "InstallPath",
+                ),
+                AppType::WeChat => (
+                    HKEY_CURRENT_USER,
+                    r"Software\Tencent\WeChat",
+                    "InstallPath",
+                ),
+            };
+
+            let mut h_key = HKEY::default();
+
+            // 尝试打开注册表项
+            if RegOpenKeyExW(
+                root_key,
+                &HSTRING::from(subkey),
+                0,
+                KEY_READ,
+                &mut h_key,
+            )
+            .is_ok()
+            {
+                let mut buffer = vec![0u16; 512];
+                let mut size = (buffer.len() * 2) as u32;
+
+                if RegQueryValueExW(
+                    h_key,
+                    &HSTRING::from(value_name),
+                    None,
+                    None,
+                    Some(buffer.as_mut_ptr() as _),
+                    Some(&mut size),
+                )
+                .is_ok()
+                {
+                    let _ = RegCloseKey(h_key);
+
+                    // 转换路径
+                    let len = size as usize / 2;
+                    let install_dir = String::from_utf16_lossy(&buffer[..len.saturating_sub(1)]);
+
+                    // 构建完整路径
+                    let exe_name = match app_type {
+                        AppType::WeCom => "WXWork.exe",
+                        AppType::WeChat => "WeChat.exe",
+                    };
+
+                    return Some(PathBuf::from(install_dir).join(exe_name));
+                }
+
+                let _ = RegCloseKey(h_key);
+            }
+        }
+
+        None
+    }
+
+    /// 从正在运行的进程获取路径
+    fn get_path_from_running_process(app_type: AppType) -> Option<PathBuf> {
+        use windows::Win32::System::ProcessStatus::*;
+
+        // 支持多种进程名称 (不同版本/语言可能不同)
+        let process_names = match app_type {
+            AppType::WeCom => vec![
+                "wxwork.exe",           // 中文版
+                "wecom.exe",            // 英文版
+                "wework.exe",           // 可能的别名
+                "企业微信.exe",          // 中文名
+            ],
+            AppType::WeChat => vec![
+                "wechat.exe",           // 标准名称
+                "weixin.exe",           // 微信拼音
+                "微信.exe",             // 中文名
+            ],
+        };
+
+        unsafe {
+            let mut process_ids = vec![0u32; 2048];
+            let mut bytes_returned = 0u32;
+
+            if EnumProcesses(
+                process_ids.as_mut_ptr(),
+                (process_ids.len() * std::mem::size_of::<u32>()) as u32,
+                &mut bytes_returned,
+            )
+            .is_ok()
+            {
+                let count = bytes_returned as usize / std::mem::size_of::<u32>();
+
+                for &pid in &process_ids[..count] {
+                    if pid == 0 {
+                        continue;
+                    }
+
+                    if let Ok(h_process) = OpenProcess(
+                        PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                        false,
+                        pid,
+                    ) {
+                        let mut exe_path = vec![0u16; 512];
+                        let mut size = exe_path.len() as u32;
+
+                        if QueryFullProcessImageNameW(
+                            h_process,
+                            PROCESS_NAME_WIN32,
+                            PWSTR(exe_path.as_mut_ptr()),
+                            &mut size,
+                        )
+                        .is_ok()
+                        {
+                            let path_str = String::from_utf16_lossy(&exe_path[..size as usize]);
+                            let path_lower = path_str.to_lowercase();
+
+                            // 检查是否匹配任一进程名
+                            for name in &process_names {
+                                if path_lower.contains(&name.to_lowercase()) {
+                                    let _ = CloseHandle(h_process);
+                                    return Some(PathBuf::from(path_str));
+                                }
+                            }
+                        }
+
+                        let _ = CloseHandle(h_process);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// 扫描常见安装目录
+    fn scan_common_directories(app_type: AppType) -> Option<PathBuf> {
+        // 获取所有可能的盘符
+        let drives = get_available_drives();
+
+        let (app_dirs, exe_name) = match app_type {
+            AppType::WeCom => (
+                vec![
+                    r"WXWork",
+                    r"Tencent\WXWork",
+                    r"企业微信",
+                ],
+                "WXWork.exe",
+            ),
+            AppType::WeChat => (
+                vec![
+                    r"WeChat",
+                    r"Tencent\WeChat",
+                    r"微信",
+                ],
+                "WeChat.exe",
+            ),
+        };
+
+        // 常见的程序安装根目录
+        let base_dirs = vec![
+            r"Program Files (x86)",
+            r"Program Files",
+            r"软件",
+            r"Apps",
+        ];
+
+        for drive in drives {
+            for base_dir in &base_dirs {
+                for app_dir in &app_dirs {
+                    let full_path = PathBuf::from(format!(r"{}:\{}\{}\{}",
+                        drive, base_dir, app_dir, exe_name));
+
+                    if full_path.exists() {
+                        return Some(full_path);
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    /// 获取所有可用的驱动器盘符
+    fn get_available_drives() -> Vec<char> {
+        use windows::Win32::Storage::FileSystem::*;
+
+        let mut drives = Vec::new();
+
+        unsafe {
+            let bitmask = GetLogicalDrives();
+
+            for i in 0..26 {
+                if (bitmask & (1 << i)) != 0 {
+                    drives.push((b'A' + i) as char);
+                }
+            }
+        }
+
+        drives
     }
 
     pub async fn spawn_multiple(req: SpawnRequest) -> std::result::Result<SpawnResponse, String> {
@@ -393,9 +597,20 @@ pub mod platform {
         use windows::Win32::System::ProcessStatus::*;
 
         let mut pids = Vec::new();
-        let exe_name = match app_type {
-            AppType::WeCom => "wxwork.exe",
-            AppType::WeChat => "wechat.exe",
+
+        // 支持多种进程名称 (不同版本/语言)
+        let process_names = match app_type {
+            AppType::WeCom => vec![
+                "wxwork.exe",           // 中文版
+                "wecom.exe",            // 英文版
+                "wework.exe",           // 可能的别名
+                "企业微信.exe",          // 中文名
+            ],
+            AppType::WeChat => vec![
+                "wechat.exe",           // 标准名称
+                "weixin.exe",           // 微信拼音
+                "微信.exe",             // 中文名
+            ],
         };
 
         unsafe {
@@ -436,10 +651,14 @@ pub mod platform {
                         .is_ok()
                         {
                             let path = String::from_utf16_lossy(&exe_path[..size as usize]);
+                            let path_lower = path.to_lowercase();
 
-                            // 检查是否是目标进程
-                            if path.to_lowercase().contains(exe_name) {
-                                pids.push(pid);
+                            // 检查是否匹配任一进程名
+                            for name in &process_names {
+                                if path_lower.contains(&name.to_lowercase()) {
+                                    pids.push(pid);
+                                    break;
+                                }
                             }
                         }
 
