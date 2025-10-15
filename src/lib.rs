@@ -11,7 +11,7 @@ pub mod windows_sandbox;
 #[cfg(target_os = "windows")]
 pub mod wecom_manager;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub enum AppType {
     WeCom,   // 企业微信
     WeChat,  // 个人微信
