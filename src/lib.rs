@@ -117,20 +117,11 @@ pub mod platform {
     fn close_mutex(name: &str) -> std::result::Result<(), String> {
         unsafe {
             let h_current = GetCurrentProcess();
-            // 先查询需要的缓冲区大小
-            let mut ret_len = 0u32;
 
-            // 第一次调用获取所需大小
-            let _ = NtQuerySystemInformation(
-                SystemExtendedHandleInformation,
-                std::ptr::null_mut(),
-                0,
-                &mut ret_len,
-            );
-
-            // 分配足够大的缓冲区 (增加 50% 余量)
-            let buf_size = ((ret_len as usize) * 3) / 2;
+            // 使用足够大的固定缓冲区 (4MB,足以容纳大部分系统的句柄信息)
+            let buf_size = 4 * 1024 * 1024; // 4MB
             let mut buf = vec![0u8; buf_size];
+            let mut ret_len = 0u32;
 
             let status = NtQuerySystemInformation(
                 SystemExtendedHandleInformation,
