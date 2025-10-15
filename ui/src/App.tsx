@@ -345,7 +345,7 @@ function App() {
 
             {/* 底部提示 */}
             <div className="mt-4 text-center text-[10px] text-muted-foreground">
-              <p>v0.5.4 · 微信/企业微信 · Windows 沙盒隔离 · macOS 完全隔离</p>
+              <p>v0.5.5 · 微信/企业微信 · Windows 沙盒隔离 · macOS 完全隔离</p>
             </div>
           </motion.div>
         </AnimatePresence>
