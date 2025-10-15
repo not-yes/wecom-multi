@@ -145,15 +145,21 @@ pub mod platform {
 
             eprintln!("[调试] 开始扫描系统句柄,总数: {}", info.NumberOfHandles);
 
+            // 收集所有 ObjectTypeIndex 的统计
+            let mut type_counts: std::collections::HashMap<u16, usize> = std::collections::HashMap::new();
+
             for h in handles {
                 // 跳过当前进程的句柄
                 if h.UniqueProcessId == GetCurrentProcessId() {
                     continue;
                 }
 
-                // ObjectTypeIndex 17 通常表示 Mutant (Mutex) 对象
-                // 只处理 Mutex 类型的句柄
-                if h.ObjectTypeIndex != 17 {
+                // 统计类型分布
+                *type_counts.entry(h.ObjectTypeIndex).or_insert(0) += 1;
+
+                // 尝试多个可能的 ObjectTypeIndex (不同 Windows 版本可能不同)
+                // 17 = Mutant (常见), 18, 19 也可能是
+                if h.ObjectTypeIndex < 15 || h.ObjectTypeIndex > 25 {
                     continue;
                 }
 
@@ -212,10 +218,18 @@ pub mod platform {
             eprintln!("[调试] 扫描完成 - Mutex类型句柄: {}, 成功查询名称: {}, 关闭数量: {}",
                 mutex_count, checked_count, closed_count);
 
+            // 输出类型统计的前 10 个
+            let mut sorted_types: Vec<_> = type_counts.iter().collect();
+            sorted_types.sort_by(|a, b| b.1.cmp(a.1));
+            eprintln!("[调试] ObjectTypeIndex 统计 (前10):");
+            for (idx, (type_id, count)) in sorted_types.iter().take(10).enumerate() {
+                eprintln!("  {}. Type {}: {} 个句柄", idx + 1, type_id, count);
+            }
+
             if closed_count > 0 {
                 Ok(())
             } else {
-                Err(format!("未找到名为 '{}' 的 Mutex (扫描了 {} 个 Mutex 句柄,成功查询 {} 个名称)",
+                Err(format!("未找到名为 '{}' 的 Mutex (扫描了 {} 个可能的 Mutex 句柄,成功查询 {} 个名称)",
                     name, mutex_count, checked_count))
             }
         }
